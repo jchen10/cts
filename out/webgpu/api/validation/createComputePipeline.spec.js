@@ -16,19 +16,19 @@ class F extends ValidationTest {
     let code;
     switch (shaderStage) {
       case 'compute':{
-          code = `[[stage(compute), workgroup_size(1)]] fn ${entryPoint}() {}`;
+          code = `@stage(compute) @workgroup_size(1) fn ${entryPoint}() {}`;
           break;
         }
       case 'vertex':{
           code = `
-        [[stage(vertex)]] fn ${entryPoint}() -> [[builtin(position)]] vec4<f32> {
+        @stage(vertex) fn ${entryPoint}() -> @builtin(position) vec4<f32> {
           return vec4<f32>(0.0, 0.0, 0.0, 1.0);
         }`;
           break;
         }
       case 'fragment':{
           code = `
-        [[stage(fragment)]] fn ${entryPoint}() -> [[location(0)]] vec4<i32> {
+        @stage(fragment) fn ${entryPoint}() -> @location(0) vec4<i32> {
           return vec4<i32>(0, 1, 0, 1);
         }`;
           break;
@@ -62,13 +62,9 @@ class F extends ValidationTest {
         this.shouldReject('OperationError', this.device.createComputePipelineAsync(descriptor));
       }
     } else {
-      if (_success) {
+      this.expectValidationError(() => {
         this.device.createComputePipeline(descriptor);
-      } else {
-        this.expectValidationError(() => {
-          this.device.createComputePipeline(descriptor);
-        });
-      }
+      }, !_success);
     }
   }}
 
@@ -180,12 +176,53 @@ desc(
 'Tests createComputePipeline(Async) cannot be called with a pipeline layout created from another device').
 
 paramsSubcasesOnly(u => u.combine('isAsync', [true, false]).combine('mismatched', [true, false])).
-unimplemented();
+fn(async t => {
+  const { isAsync, mismatched } = t.params;
+
+  if (mismatched) {
+    await t.selectMismatchedDeviceOrSkipTestCase(undefined);
+  }
+
+  const layoutDescriptor = { bindGroupLayouts: [] };
+  const layout = mismatched ?
+  t.mismatchedDevice.createPipelineLayout(layoutDescriptor) :
+  t.device.createPipelineLayout(layoutDescriptor);
+
+  const descriptor = {
+    layout,
+    compute: {
+      module: t.getShaderModule('compute', 'main'),
+      entryPoint: 'main' } };
+
+
+
+  t.doCreateComputePipelineTest(isAsync, !mismatched, descriptor);
+});
 
 g.test('shader_module,device_mismatch').
 desc(
 'Tests createComputePipeline(Async) cannot be called with a shader module created from another device').
 
 paramsSubcasesOnly(u => u.combine('isAsync', [true, false]).combine('mismatched', [true, false])).
-unimplemented();
+fn(async t => {
+  const { isAsync, mismatched } = t.params;
+
+  if (mismatched) {
+    await t.selectMismatchedDeviceOrSkipTestCase(undefined);
+  }
+
+  const code = '@stage(compute) @workgroup_size(1) fn main() {}';
+  const module = mismatched ?
+  t.mismatchedDevice.createShaderModule({ code }) :
+  t.device.createShaderModule({ code });
+
+  const descriptor = {
+    compute: {
+      module,
+      entryPoint: 'main' } };
+
+
+
+  t.doCreateComputePipelineTest(isAsync, !mismatched, descriptor);
+});
 //# sourceMappingURL=createComputePipeline.spec.js.map

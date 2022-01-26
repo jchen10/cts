@@ -28,7 +28,10 @@ import { unreachable } from '../../../common/util/util.js';
 import {
 kTextureFormats,
 kRenderableColorTextureFormats,
-kTextureFormatInfo } from
+kTextureFormatInfo,
+kDepthStencilFormats,
+kCompareFunctions,
+kStencilOperations } from
 '../../capability_info.js';
 import { kTexelRepresentationInfo } from '../../util/texture/texel_data.js';
 
@@ -79,13 +82,14 @@ class F extends ValidationTest {
 
 
     return `
-    [[stage(fragment)]] fn main() -> [[location(0)]] ${outputType} {
+    @stage(fragment) fn main() -> @location(0) ${outputType} {
       return ${result};
     }`;
   }
 
   getDescriptor(
   options =
+
 
 
 
@@ -101,21 +105,24 @@ class F extends ValidationTest {
       depthStencil,
       fragmentShaderCode = this.getFragmentShaderCode(
       kTextureFormatInfo[targets[0] ? targets[0].format : 'rgba8unorm'].sampleType,
-      4) } =
+      4),
 
+      noFragment = false } =
     options;
 
     return {
       vertex: {
         module: this.device.createShaderModule({
           code: `
-            [[stage(vertex)]] fn main() -> [[builtin(position)]] vec4<f32> {
+            @stage(vertex) fn main() -> @builtin(position) vec4<f32> {
               return vec4<f32>(0.0, 0.0, 0.0, 1.0);
             }` }),
 
         entryPoint: 'main' },
 
-      fragment: {
+      fragment: noFragment ?
+      undefined :
+      {
         module: this.device.createShaderModule({
           code: fragmentShaderCode }),
 
@@ -156,13 +163,9 @@ class F extends ValidationTest {
         this.shouldReject('OperationError', this.device.createRenderPipelineAsync(descriptor));
       }
     } else {
-      if (_success) {
+      this.expectValidationError(() => {
         this.device.createRenderPipeline(descriptor);
-      } else {
-        this.expectValidationError(() => {
-          this.device.createRenderPipeline(descriptor);
-        });
-      }
+      }, !_success);
     }
   }}
 
@@ -170,6 +173,7 @@ class F extends ValidationTest {
 export const g = makeTestGroup(F);
 
 g.test('basic_use_of_createRenderPipeline').
+desc(`TODO: review and add description; shorten name`).
 params(u => u.combine('isAsync', [false, true])).
 fn(async t => {
   const { isAsync } = t.params;
@@ -178,7 +182,48 @@ fn(async t => {
   t.doCreateRenderPipelineTest(isAsync, true, descriptor);
 });
 
-g.test('at_least_one_color_state_is_required').
+g.test('create_vertex_only_pipeline_with_without_depth_stencil_state').
+desc(
+`Test creating vertex-only render pipeline. A vertex-only render pipeline have no fragment
+state (and thus have no color state), and can be create with or without depth stencil state.
+
+TODO: review and shorten name`).
+
+params((u) =>
+u.
+combine('isAsync', [false, true]).
+beginSubcases().
+combine('depthStencilFormat', [
+'depth24plus',
+'depth24plus-stencil8',
+'depth32float',
+'']).
+
+combine('haveColor', [false, true])).
+
+fn(async t => {
+  const { isAsync, depthStencilFormat, haveColor } = t.params;
+
+  let depthStencilState;
+  if (depthStencilFormat === '') {
+    depthStencilState = undefined;
+  } else {
+    depthStencilState = { format: depthStencilFormat };
+  }
+
+  // Having targets or not should have no effect in result, since it will not appear in the
+  // descriptor in vertex-only render pipeline
+  const descriptor = t.getDescriptor({
+    noFragment: true,
+    depthStencil: depthStencilState,
+    targets: haveColor ? [{ format: 'rgba8unorm' }] : [] });
+
+
+  t.doCreateRenderPipelineTest(isAsync, true, descriptor);
+});
+
+g.test('at_least_one_color_state_is_required_for_complete_pipeline').
+desc(`TODO: review and add description; shorten name`).
 params(u => u.combine('isAsync', [false, true])).
 fn(async t => {
   const { isAsync } = t.params;
@@ -199,6 +244,7 @@ fn(async t => {
 });
 
 g.test('color_formats_must_be_renderable').
+desc(`TODO: review and add description; shorten name`).
 params(u => u.combine('isAsync', [false, true]).combine('format', kTextureFormats)).
 fn(async t => {
   const { isAsync, format } = t.params;
@@ -210,7 +256,144 @@ fn(async t => {
   t.doCreateRenderPipelineTest(isAsync, info.renderable && info.color, descriptor);
 });
 
+g.test('depth_stencil_state,format').
+desc(`The texture format in depthStencilState must be a depth/stencil format`).
+params(u => u.combine('isAsync', [false, true]).combine('format', kTextureFormats)).
+fn(async t => {
+  const { isAsync, format } = t.params;
+  const info = kTextureFormatInfo[format];
+  await t.selectDeviceOrSkipTestCase(info.feature);
+
+  const descriptor = t.getDescriptor({ depthStencil: { format } });
+
+  t.doCreateRenderPipelineTest(isAsync, info.depth || info.stencil, descriptor);
+});
+
+g.test('depth_stencil_state,depth_aspect,depth_test').
+desc(
+`Depth aspect must be contained in the format if depth test is enabled in depthStencilState.`).
+
+params((u) =>
+u.
+combine('isAsync', [false, true]).
+combine('format', kDepthStencilFormats).
+combine('depthCompare', [undefined, ...kCompareFunctions])).
+
+fn(async t => {
+  const { isAsync, format, depthCompare } = t.params;
+  const info = kTextureFormatInfo[format];
+  await t.selectDeviceOrSkipTestCase(info.feature);
+
+  const descriptor = t.getDescriptor({
+    depthStencil: { format, depthCompare } });
+
+
+  const depthTestEnabled = depthCompare !== undefined && depthCompare !== 'always';
+  t.doCreateRenderPipelineTest(isAsync, !depthTestEnabled || info.depth, descriptor);
+});
+
+g.test('depth_stencil_state,depth_aspect,depth_write').
+desc(
+`Depth aspect must be contained in the format if depth write is enabled in depthStencilState.`).
+
+params((u) =>
+u.
+combine('isAsync', [false, true]).
+combine('format', kDepthStencilFormats).
+combine('depthWriteEnabled', [false, true])).
+
+fn(async t => {
+  const { isAsync, format, depthWriteEnabled } = t.params;
+  const info = kTextureFormatInfo[format];
+  await t.selectDeviceOrSkipTestCase(info.feature);
+
+  const descriptor = t.getDescriptor({
+    depthStencil: { format, depthWriteEnabled } });
+
+  t.doCreateRenderPipelineTest(isAsync, !depthWriteEnabled || info.depth, descriptor);
+});
+
+g.test('depth_stencil_state,stencil_aspect,stencil_test').
+desc(
+`Stencil aspect must be contained in the format if stencil test is enabled in depthStencilState.`).
+
+params((u) =>
+u.
+combine('isAsync', [false, true]).
+combine('format', kDepthStencilFormats).
+combine('face', ['front', 'back']).
+combine('compare', [undefined, ...kCompareFunctions])).
+
+fn(async t => {
+  const { isAsync, format, face, compare } = t.params;
+  const info = kTextureFormatInfo[format];
+  await t.selectDeviceOrSkipTestCase(info.feature);
+
+  let descriptor;
+  if (face === 'front') {
+    descriptor = t.getDescriptor({ depthStencil: { format, stencilFront: { compare } } });
+  } else {
+    descriptor = t.getDescriptor({ depthStencil: { format, stencilBack: { compare } } });
+  }
+
+  const stencilTestEnabled = compare !== undefined && compare !== 'always';
+  t.doCreateRenderPipelineTest(isAsync, !stencilTestEnabled || info.stencil, descriptor);
+});
+
+g.test('depth_stencil_state,stencil_aspect,stencil_write').
+desc(
+`Stencil aspect must be contained in the format if stencil write is enabled in depthStencilState.`).
+
+params((u) =>
+u.
+combine('isAsync', [false, true]).
+combine('format', kDepthStencilFormats).
+combine('faceAndOpType', [
+'frontFailOp',
+'frontDepthFailOp',
+'frontPassOp',
+'backFailOp',
+'backDepthFailOp',
+'backPassOp']).
+
+combine('op', [undefined, ...kStencilOperations])).
+
+fn(async t => {
+  const { isAsync, format, faceAndOpType, op } = t.params;
+  const info = kTextureFormatInfo[format];
+  await t.selectDeviceOrSkipTestCase(info.feature);
+
+  let depthStencil;
+  switch (faceAndOpType) {
+    case 'frontFailOp':
+      depthStencil = { format, stencilFront: { failOp: op } };
+      break;
+    case 'frontDepthFailOp':
+      depthStencil = { format, stencilFront: { depthFailOp: op } };
+      break;
+    case 'frontPassOp':
+      depthStencil = { format, stencilFront: { passOp: op } };
+      break;
+    case 'backFailOp':
+      depthStencil = { format, stencilBack: { failOp: op } };
+      break;
+    case 'backDepthFailOp':
+      depthStencil = { format, stencilBack: { depthFailOp: op } };
+      break;
+    case 'backPassOp':
+      depthStencil = { format, stencilBack: { passOp: op } };
+      break;
+    default:
+      unreachable();}
+
+  const descriptor = t.getDescriptor({ depthStencil });
+
+  const stencilWriteEnabled = op !== undefined && op !== 'keep';
+  t.doCreateRenderPipelineTest(isAsync, !stencilWriteEnabled || info.stencil, descriptor);
+});
+
 g.test('sample_count_must_be_valid').
+desc(`TODO: review and add description; shorten name`).
 params((u) =>
 u.combine('isAsync', [false, true]).combineWithParams([
 { sampleCount: 0, _success: false },
@@ -236,7 +419,8 @@ desc(
   - The scalar type (f32, i32, or u32) must match the sample type of the format.
   - The componentCount of the fragment output (e.g. f32, vec2, vec3, vec4) must not have fewer
     channels than that of the color attachment texture formats. Extra components are allowed and are discarded.
-  `).
+
+TODO: review`).
 
 params((u) =>
 u.
@@ -372,17 +556,94 @@ fn(async t => {
   t.doCreateRenderPipelineTest(isAsync, _success, descriptor);
 });
 
+g.test('pipeline_output_targets,format_blendable').
+desc(`If blending is used, the target's format must be blendable (support "float" sample type).`).
+unimplemented();
+
+g.test('pipeline_output_targets,blend_min_max').
+desc(`If the blend operation is "min" or "max", srcFactor and dstFactor must be "one".`).
+unimplemented();
+
 g.test('pipeline_layout,device_mismatch').
 desc(
 'Tests createRenderPipeline(Async) cannot be called with a pipeline layout created from another device').
 
 paramsSubcasesOnly(u => u.combine('isAsync', [true, false]).combine('mismatched', [true, false])).
-unimplemented();
+fn(async t => {
+  const { isAsync, mismatched } = t.params;
+
+  if (mismatched) {
+    await t.selectMismatchedDeviceOrSkipTestCase(undefined);
+  }
+
+  const layoutDescriptor = { bindGroupLayouts: [] };
+  const layout = mismatched ?
+  t.mismatchedDevice.createPipelineLayout(layoutDescriptor) :
+  t.device.createPipelineLayout(layoutDescriptor);
+
+  const descriptor = {
+    layout,
+    vertex: {
+      module: t.device.createShaderModule({
+        code: `
+        @stage(vertex) fn main() -> @builtin(position) vec4<f32> {
+          return vec4<f32>(0.0, 0.0, 0.0, 1.0);
+        }
+      ` }),
+
+      entryPoint: 'main' },
+
+    fragment: {
+      module: t.device.createShaderModule({ code: t.getFragmentShaderCode('float', 4) }),
+      entryPoint: 'main',
+      targets: [{ format: 'rgba8unorm' }] } };
+
+
+
+  t.doCreateRenderPipelineTest(isAsync, !mismatched, descriptor);
+});
 
 g.test('shader_module,device_mismatch').
 desc(
 'Tests createRenderPipeline(Async) cannot be called with a shader module created from another device').
 
-paramsSubcasesOnly(u => u.combine('isAsync', [true, false]).combine('mismatched', [true, false])).
-unimplemented();
+paramsSubcasesOnly((u) =>
+u.combine('isAsync', [true, false]).combineWithParams([
+{ vertex_mismatched: false, fragment_mismatched: false, _success: true },
+{ vertex_mismatched: true, fragment_mismatched: false, _success: false },
+{ vertex_mismatched: false, fragment_mismatched: true, _success: false }])).
+
+
+fn(async t => {
+  const { isAsync, vertex_mismatched, fragment_mismatched, _success } = t.params;
+
+  if (vertex_mismatched || fragment_mismatched) {
+    await t.selectMismatchedDeviceOrSkipTestCase(undefined);
+  }
+
+  const code = `
+      @stage(vertex) fn main() -> @builtin(position) vec4<f32> {
+        return vec4<f32>(0.0, 0.0, 0.0, 1.0);
+      }
+    `;
+
+  const descriptor = {
+    vertex: {
+      module: vertex_mismatched ?
+      t.mismatchedDevice.createShaderModule({ code }) :
+      t.device.createShaderModule({ code }),
+      entryPoint: 'main' },
+
+    fragment: {
+      module: fragment_mismatched ?
+      t.mismatchedDevice.createShaderModule({ code: t.getFragmentShaderCode('float', 4) }) :
+      t.device.createShaderModule({ code: t.getFragmentShaderCode('float', 4) }),
+      entryPoint: 'main',
+      targets: [{ format: 'rgba8unorm' }] },
+
+    layout: t.getPipelineLayout() };
+
+
+  t.doCreateRenderPipelineTest(isAsync, _success, descriptor);
+});
 //# sourceMappingURL=createRenderPipeline.spec.js.map

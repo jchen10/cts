@@ -41,15 +41,25 @@ function faceColor(face, frontFace, cullMode) {
 export const g = makeTestGroup(GPUTest);
 
 g.test('culling')
-  .params(u =>
-    u
-      .combine('frontFace', ['ccw', 'cw'])
-      .combine('cullMode', ['none', 'front', 'back'])
-      .beginSubcases()
-      .combine('depthStencilFormat', [null, 'depth24plus', 'depth32float', 'depth24plus-stencil8'])
-
-      // TODO: test triangle-strip as well
-      .combine('primitiveTopology', ['triangle-list'])
+  .desc(
+    `
+TODO: test triangle-strip as well [1]
+TODO: check the contents of the depth and stencil outputs [2]
+`
+  )
+  .params(
+    u =>
+      u
+        .combine('frontFace', ['ccw', 'cw'])
+        .combine('cullMode', ['none', 'front', 'back'])
+        .beginSubcases()
+        .combine('depthStencilFormat', [
+          null,
+          'depth24plus',
+          'depth32float',
+          'depth24plus-stencil8',
+        ])
+        .combine('primitiveTopology', ['triangle-list']) // [1]
   )
   .fn(t => {
     const size = 4;
@@ -98,9 +108,9 @@ g.test('culling')
         vertex: {
           module: t.device.createShaderModule({
             code: `
-              [[stage(vertex)]] fn main(
-                [[builtin(vertex_index)]] VertexIndex : u32
-                ) -> [[builtin(position)]] vec4<f32> {
+              @stage(vertex) fn main(
+                @builtin(vertex_index) VertexIndex : u32
+                ) -> @builtin(position) vec4<f32> {
                 var pos : array<vec2<f32>, 6> = array<vec2<f32>, 6>(
                     vec2<f32>(-1.0,  1.0),
                     vec2<f32>(-1.0,  0.0),
@@ -118,9 +128,9 @@ g.test('culling')
         fragment: {
           module: t.device.createShaderModule({
             code: `
-              [[stage(fragment)]] fn main(
-                [[builtin(front_facing)]] FrontFacing : bool
-                ) -> [[location(0)]] vec4<f32> {
+              @stage(fragment) fn main(
+                @builtin(front_facing) FrontFacing : bool
+                ) -> @location(0) vec4<f32> {
                 var color : vec4<f32>;
                 if (FrontFacing) {
                   color = vec4<f32>(0.0, 1.0, 0.0, 1.0);
@@ -167,5 +177,5 @@ g.test('culling')
       { exp: kCWTriangleBottomRightColor }
     );
 
-    // TODO: check the contents of the depth and stencil outputs
+    // [2]: check the contents of the depth and stencil outputs
   });

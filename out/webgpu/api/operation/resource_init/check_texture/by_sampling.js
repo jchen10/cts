@@ -55,20 +55,20 @@ subresourceRange) =>
         entryPoint: 'main',
         module: t.device.createShaderModule({
           code: `
-            [[block]] struct Constants {
+            struct Constants {
               level : i32;
             };
 
-            [[group(0), binding(0)]] var<uniform> constants : Constants;
-            [[group(0), binding(1)]] var myTexture : texture${_multisampled}${_xd}<${shaderType}>;
+            @group(0) @binding(0) var<uniform> constants : Constants;
+            @group(0) @binding(1) var myTexture : texture${_multisampled}${_xd}<${shaderType}>;
 
-            [[block]] struct Result {
-              values : [[stride(4)]] array<${shaderType}>;
+            struct Result {
+              values : @stride(4) array<${shaderType}>;
             };
-            [[group(0), binding(3)]] var<storage, read_write> result : Result;
+            @group(0) @binding(3) var<storage, read_write> result : Result;
 
-            [[stage(compute), workgroup_size(1)]]
-            fn main([[builtin(global_invocation_id)]] GlobalInvocationID : vec3<u32>) {
+            @stage(compute) @workgroup_size(1)
+            fn main(@builtin(global_invocation_id) GlobalInvocationID : vec3<u32>) {
               let flatIndex : u32 = ${componentCount}u * (
                 ${width}u * ${height}u * GlobalInvocationID.z +
                 ${width}u * GlobalInvocationID.y +

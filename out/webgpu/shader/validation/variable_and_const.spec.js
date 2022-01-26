@@ -2,6 +2,8 @@
 * AUTO-GENERATED - DO NOT EDIT. Source: https://github.com/gpuweb/cts
 **/export const description = `
 Positive and negative validation tests for variable and const.
+
+TODO: Find a better way to test arrays than using a single arbitrary size. [1]
 `;import { makeTestGroup } from '../../../common/framework/test_group.js';
 
 import { ShaderValidationTest } from './shader_validation_test.js';
@@ -34,7 +36,7 @@ const kTestTypes = [
 'mat4x2<f32>',
 'mat4x3<f32>',
 'mat4x4<f32>',
-// TODO(sarahM0): 12 is a random number here. find a solution to replace it.
+// [1]: 12 is a random number here. find a solution to replace it.
 'array<f32, 12>',
 'array<i32, 12>',
 'array<u32, 12>',
@@ -60,7 +62,7 @@ fn(t => {
   const { variableOrConstant, lhsType, rhsType } = t.params;
 
   const code = `
-      [[stage(fragment)]]
+      @stage(fragment)
       fn main() {
         ${variableOrConstant} a : ${lhsType} = ${rhsType}();
       }
@@ -103,20 +105,20 @@ fn(t => {
   if (`${storageClass}` === 'in') {
     code = `
         struct MyInputs {
-          [[location(0)]] a : ${type};
+          @location(0) @interpolate(flat) a : ${type};
         };
 
-        [[stage(fragment)]]
+        @stage(fragment)
         fn main(inputs : MyInputs) {
         }
       `;
   } else if (`${storageClass}` === 'out') {
     code = `
         struct MyOutputs {
-          [[location(0)]] a : ${type};
+          @location(0) a : ${type};
         };
 
-        [[stage(fragment)]]
+        @stage(fragment)
         fn main() -> MyOutputs {
           return MyOutputs();
         }
@@ -125,7 +127,7 @@ fn(t => {
     code = `
       var<${storageClass}> a : ${type} = ${type}();
 
-      [[stage(fragment)]]
+      @stage(fragment)
       fn main() {
       }
       `;

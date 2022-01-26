@@ -535,7 +535,7 @@ fn(async t => {
     usage: GPUTextureUsage.COPY_DST });
 
 
-  // TODO(jiawei.shao@intel.com): get the valid aspects from capability_info.ts.
+  // MAINTENANCE_TODO: get the valid aspects from capability_info.ts.
   const kValidAspectsForFormat = {
     rgba8unorm: ['all'],
 
@@ -586,8 +586,13 @@ combine('dstCopyLevel', [0, 1, 2])).
 fn(async t => {
   const { format, copyBoxOffsets, srcCopyLevel, dstCopyLevel } = t.params;
   await t.selectDeviceOrSkipTestCase(kTextureFormatInfo[format].feature);
+  const { blockWidth, blockHeight } = kTextureFormatInfo[format];
 
-  const kTextureSize = { width: 60, height: 48, depthOrArrayLayers: 3 };
+  const kTextureSize = {
+    width: 15 * blockWidth,
+    height: 12 * blockHeight,
+    depthOrArrayLayers: 3 };
+
   const kMipLevelCount = 4;
 
   const srcTexture = t.device.createTexture({

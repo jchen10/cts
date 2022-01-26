@@ -1,7 +1,7 @@
 /**
  * AUTO-GENERATED - DO NOT EDIT. Source: https://github.com/gpuweb/cts
- **/ // TODO: The generated Typedoc for this file is hard to navigate because it's alphabetized.
-// Consider using namespaces or renames to fix this?
+ **/ // MAINTENANCE_TODO: The generated Typedoc for this file is hard to navigate because it's
+// alphabetized. Consider using namespaces or renames to fix this?
 
 import { keysOf, makeTable, numericKeysOf } from '../common/util/data_tables.js';
 import { assertTypeTrue } from '../common/util/types.js';
@@ -48,6 +48,10 @@ export const kBufferUsageInfo = {
 
 /** List of all GPUBufferUsage values. */
 export const kBufferUsages = numericKeysOf(kBufferUsageInfo);
+export const kAllBufferUsageBits = kBufferUsages.reduce(
+  (previousSet, currentUsage) => previousSet | currentUsage,
+  0
+);
 
 // Textures
 
@@ -149,16 +153,18 @@ const kUnsizedDepthStencilFormatInfo = makeTable(
   {
     depth24plus: [, , , true, false, , , , 'depth'],
     'depth24plus-stencil8': [, , , true, true, , , , 'depth'],
-    // These should really be sized formats; see below TODO about multi-aspect formats.
+    // MAINTENANCE_TODO: These should really be sized formats; see below MAINTENANCE_TODO about multi-aspect formats.
     'depth24unorm-stencil8': [, , , true, true, , , , 'depth', , , , 'depth24unorm-stencil8'],
     'depth32float-stencil8': [, , , true, true, , , , 'depth', , , , 'depth32float-stencil8'],
   }
 );
 
-const kCompressedTextureFormatInfo = makeTable(
+// Separated compressed formats by type
+const kBCTextureFormatInfo = makeTable(
   kTexFmtInfoHeader,
   [false, false, true, false, false, false, true, true, , , 4, 4],
   {
+    // Block Compression (BC) formats
     'bc1-rgba-unorm': [, , , , , , , , 'float', 8, 4, 4, 'texture-compression-bc'],
     'bc1-rgba-unorm-srgb': [, , , , , , , , 'float', 8, 4, 4, 'texture-compression-bc'],
     'bc2-rgba-unorm': [, , , , , , , , 'float', 16, 4, 4, 'texture-compression-bc'],
@@ -176,10 +182,69 @@ const kCompressedTextureFormatInfo = makeTable(
   }
 );
 
+const kETC2TextureFormatInfo = makeTable(
+  kTexFmtInfoHeader,
+  [false, false, true, false, false, false, true, true, , , 4, 4],
+  {
+    // Ericsson Compression (ETC2) formats
+    'etc2-rgb8unorm': [, , , , , , , , 'float', 8, 4, 4, 'texture-compression-etc2'],
+    'etc2-rgb8unorm-srgb': [, , , , , , , , 'float', 8, 4, 4, 'texture-compression-etc2'],
+    'etc2-rgb8a1unorm': [, , , , , , , , 'float', 8, 4, 4, 'texture-compression-etc2'],
+    'etc2-rgb8a1unorm-srgb': [, , , , , , , , 'float', 8, 4, 4, 'texture-compression-etc2'],
+    'etc2-rgba8unorm': [, , , , , , , , 'float', 16, 4, 4, 'texture-compression-etc2'],
+    'etc2-rgba8unorm-srgb': [, , , , , , , , 'float', 16, 4, 4, 'texture-compression-etc2'],
+    'eac-r11unorm': [, , , , , , , , 'float', 8, 4, 4, 'texture-compression-etc2'],
+    'eac-r11snorm': [, , , , , , , , 'float', 8, 4, 4, 'texture-compression-etc2'],
+    'eac-rg11unorm': [, , , , , , , , 'float', 16, 4, 4, 'texture-compression-etc2'],
+    'eac-rg11snorm': [, , , , , , , , 'float', 16, 4, 4, 'texture-compression-etc2'],
+  }
+);
+
+const kASTCTextureFormatInfo = makeTable(
+  kTexFmtInfoHeader,
+  [false, false, true, false, false, false, true, true, , , , ,],
+  {
+    // Adaptable Scalable Compression (ASTC) formats
+    'astc-4x4-unorm': [, , , , , , , , 'float', 16, 4, 4, 'texture-compression-astc'],
+    'astc-4x4-unorm-srgb': [, , , , , , , , 'float', 16, 4, 4, 'texture-compression-astc'],
+    'astc-5x4-unorm': [, , , , , , , , 'float', 16, 5, 4, 'texture-compression-astc'],
+    'astc-5x4-unorm-srgb': [, , , , , , , , 'float', 16, 5, 4, 'texture-compression-astc'],
+    'astc-5x5-unorm': [, , , , , , , , 'float', 16, 5, 5, 'texture-compression-astc'],
+    'astc-5x5-unorm-srgb': [, , , , , , , , 'float', 16, 5, 5, 'texture-compression-astc'],
+    'astc-6x5-unorm': [, , , , , , , , 'float', 16, 6, 5, 'texture-compression-astc'],
+    'astc-6x5-unorm-srgb': [, , , , , , , , 'float', 16, 6, 5, 'texture-compression-astc'],
+    'astc-6x6-unorm': [, , , , , , , , 'float', 16, 6, 6, 'texture-compression-astc'],
+    'astc-6x6-unorm-srgb': [, , , , , , , , 'float', 16, 6, 6, 'texture-compression-astc'],
+    'astc-8x5-unorm': [, , , , , , , , 'float', 16, 8, 5, 'texture-compression-astc'],
+    'astc-8x5-unorm-srgb': [, , , , , , , , 'float', 16, 8, 5, 'texture-compression-astc'],
+    'astc-8x6-unorm': [, , , , , , , , 'float', 16, 8, 6, 'texture-compression-astc'],
+    'astc-8x6-unorm-srgb': [, , , , , , , , 'float', 16, 8, 6, 'texture-compression-astc'],
+    'astc-8x8-unorm': [, , , , , , , , 'float', 16, 8, 8, 'texture-compression-astc'],
+    'astc-8x8-unorm-srgb': [, , , , , , , , 'float', 16, 8, 8, 'texture-compression-astc'],
+    'astc-10x5-unorm': [, , , , , , , , 'float', 16, 10, 5, 'texture-compression-astc'],
+    'astc-10x5-unorm-srgb': [, , , , , , , , 'float', 16, 10, 5, 'texture-compression-astc'],
+    'astc-10x6-unorm': [, , , , , , , , 'float', 16, 10, 6, 'texture-compression-astc'],
+    'astc-10x6-unorm-srgb': [, , , , , , , , 'float', 16, 10, 6, 'texture-compression-astc'],
+    'astc-10x8-unorm': [, , , , , , , , 'float', 16, 10, 8, 'texture-compression-astc'],
+    'astc-10x8-unorm-srgb': [, , , , , , , , 'float', 16, 10, 8, 'texture-compression-astc'],
+    'astc-10x10-unorm': [, , , , , , , , 'float', 16, 10, 10, 'texture-compression-astc'],
+    'astc-10x10-unorm-srgb': [, , , , , , , , 'float', 16, 10, 10, 'texture-compression-astc'],
+    'astc-12x10-unorm': [, , , , , , , , 'float', 16, 12, 10, 'texture-compression-astc'],
+    'astc-12x10-unorm-srgb': [, , , , , , , , 'float', 16, 12, 10, 'texture-compression-astc'],
+    'astc-12x12-unorm': [, , , , , , , , 'float', 16, 12, 12, 'texture-compression-astc'],
+    'astc-12x12-unorm-srgb': [, , , , , , , , 'float', 16, 12, 12, 'texture-compression-astc'],
+  }
+);
+
 // Definitions for use locally. To access the table entries, use `kTextureFormatInfo`.
 
-// TODO: Consider generating the exports below programmatically by filtering the big list, instead
+// MAINTENANCE_TODO: Consider generating the exports below programmatically by filtering the big list, instead
 // of using these local constants? Requires some type magic though.
+const kCompressedTextureFormatInfo = {
+  ...kBCTextureFormatInfo,
+  ...kETC2TextureFormatInfo,
+  ...kASTCTextureFormatInfo,
+};
 const kColorTextureFormatInfo = { ...kRegularTextureFormatInfo, ...kCompressedTextureFormatInfo };
 const kEncodableTextureFormatInfo = {
   ...kRegularTextureFormatInfo,
@@ -216,6 +281,7 @@ export const kEncodableTextureFormats = keysOf(kEncodableTextureFormatInfo);
 export const kSizedTextureFormats = keysOf(kSizedTextureFormatInfo);
 export const kDepthStencilFormats = keysOf(kDepthStencilFormatInfo);
 export const kUncompressedTextureFormats = keysOf(kUncompressedTextureFormatInfo);
+export const kAllTextureFormats = keysOf(kAllTextureFormatInfo);
 
 // CompressedTextureFormat are unrenderable so filter from RegularTextureFormats for color targets is enough
 export const kRenderableColorTextureFormats = kRegularTextureFormats.filter(
@@ -224,7 +290,7 @@ export const kRenderableColorTextureFormats = kRegularTextureFormats.filter(
 
 /** Per-GPUTextureFormat info. */
 // Exists just for documentation. Otherwise could be inferred by `makeTable`.
-// TODO: Refactor this to separate per-aspect data for multi-aspect formats. In particular:
+// MAINTENANCE_TODO: Refactor this to separate per-aspect data for multi-aspect formats. In particular:
 // - bytesPerBlock only makes sense on a per-aspect basis. But this table can't express that.
 //   So we put depth24unorm-stencil8 and depth32float-stencil8 to be unsized formats for now.
 
@@ -235,12 +301,19 @@ export const kTextureFormats = keysOf(kAllTextureFormatInfo);
 
 /** Valid GPUTextureFormats for `copyExternalImageToTexture`, by spec. */
 export const kValidTextureFormatsForCopyE2T = [
+  'r8unorm',
+  'r16float',
+  'r32float',
+  'rg8unorm',
+  'rg16float',
+  'rg32float',
   'rgba8unorm',
   'rgba8unorm-srgb',
   'bgra8unorm',
   'bgra8unorm-srgb',
   'rgb10a2unorm',
-  'rg8unorm',
+  'rgba16float',
+  'rgba32float',
 ];
 
 /** Per-GPUTextureDimension info. */
@@ -262,6 +335,36 @@ export const kTextureAspectInfo = {
 
 /** List of all GPUTextureAspect values. */
 export const kTextureAspects = keysOf(kTextureAspectInfo);
+
+/** Per-GPUCompareFunction info. */
+export const kCompareFunctionInfo = {
+  never: {},
+  less: {},
+  equal: {},
+  'less-equal': {},
+  greater: {},
+  'not-equal': {},
+  'greater-equal': {},
+  always: {},
+};
+
+/** List of all GPUCompareFunction values. */
+export const kCompareFunctions = keysOf(kCompareFunctionInfo);
+
+/** Per-GPUStencilOperation info. */
+export const kStencilOperationInfo = {
+  keep: {},
+  zero: {},
+  replace: {},
+  invert: {},
+  'increment-clamp': {},
+  'decrement-clamp': {},
+  'increment-wrap': {},
+  'decrement-wrap': {},
+};
+
+/** List of all GPUStencilOperation values. */
+export const kStencilOperations = keysOf(kStencilOperationInfo);
 
 const kDepthStencilFormatCapabilityInBufferTextureCopy = {
   // kUnsizedDepthStencilFormats
@@ -292,8 +395,8 @@ const kDepthStencilFormatCapabilityInBufferTextureCopy = {
 
   'depth24unorm-stencil8': {
     CopyB2T: ['stencil-only'],
-    CopyT2B: ['depth-only', 'stencil-only'],
-    texelAspectSize: { 'depth-only': 4, 'stencil-only': 1 },
+    CopyT2B: ['stencil-only'],
+    texelAspectSize: { 'depth-only': -1, 'stencil-only': 1 },
   },
 
   'depth32float-stencil8': {
@@ -464,7 +567,7 @@ export const kPerStageBindingLimits = {
   storageBuf: { class: 'storageBuf', max: 8 },
   sampler: { class: 'sampler', max: 16 },
   sampledTex: { class: 'sampledTex', max: 16 },
-  storageTex: { class: 'storageTex', max: 8 },
+  storageTex: { class: 'storageTex', max: 4 },
 };
 
 /**
@@ -597,23 +700,14 @@ assertTypeTrue();
 
 /** Binding type info (including class limits) for the specified GPUStorageTextureBindingLayout. */
 export function storageTextureBindingTypeInfo(d) {
-  switch (d.access ?? 'write-only') {
-    case 'read-only':
-      return {
-        usage: GPUConst.TextureUsage.STORAGE_BINDING,
-        ...kBindingKind.storageTex,
-        ...kValidStagesAll,
-      };
-    case 'write-only':
-      return {
-        usage: GPUConst.TextureUsage.STORAGE_BINDING,
-        ...kBindingKind.storageTex,
-        ...kValidStagesStorageWrite,
-      };
-  }
+  return {
+    usage: GPUConst.TextureUsage.STORAGE_BINDING,
+    ...kBindingKind.storageTex,
+    ...kValidStagesStorageWrite,
+  };
 }
 /** List of all GPUStorageTextureAccess values. */
-export const kStorageTextureAccessValues = ['read-only', 'write-only'];
+export const kStorageTextureAccessValues = ['write-only'];
 assertTypeTrue();
 
 /** GPUBindGroupLayoutEntry, but only the "union" fields, not the common fields. */
@@ -673,10 +767,7 @@ export function textureBindingEntries(includeUndefined) {
  * Note: Generates different `access` options, but not `format` or `viewDimension` options.
  */
 export function storageTextureBindingEntries(format) {
-  return [
-    { storageTexture: { access: 'read-only', format } },
-    { storageTexture: { access: 'write-only', format } },
-  ];
+  return [{ storageTexture: { access: 'write-only', format } }];
 }
 /** Generate a list of possible texture-or-storageTexture-typed BGLEntry values. */
 export function sampledAndStorageBindingEntries(
@@ -718,23 +809,22 @@ export const kShaderStageCombinations = [0, 1, 2, 3, 4, 5, 6, 7];
 /**
  * List of all possible texture sampleCount values.
  *
- * - TODO: Update with all possible sample counts when defined
- * - TODO: Switch existing tests to use kTextureSampleCounts
+ * MAINTENANCE_TODO: Switch existing tests to use kTextureSampleCounts
  */
 export const kTextureSampleCounts = [1, 4];
 
 // Pipeline limits
 
-/**
- * Maximum number of color attachments to a render pass.
- *
- * - TODO: Update maximum color attachments when defined in the spec.
- */
-export const kMaxColorAttachments = 4;
-
+/** Maximum number of color attachments to a render pass, by spec. */
+export const kMaxColorAttachments = 8;
 /** `maxVertexBuffers` per GPURenderPipeline, by spec. */
 export const kMaxVertexBuffers = 8;
 /** `maxVertexAttributes` per GPURenderPipeline, by spec. */
 export const kMaxVertexAttributes = 16;
 /** `maxVertexBufferArrayStride` in a vertex buffer in a GPURenderPipeline, by spec. */
 export const kMaxVertexBufferArrayStride = 2048;
+
+/** The size of indirect draw parameters in the indirectBuffer of drawIndirect */
+export const kDrawIndirectParametersSize = 4;
+/** The size of indirect drawIndexed parameters in the indirectBuffer of drawIndexedIndirect */
+export const kDrawIndexedIndirectParametersSize = 5;

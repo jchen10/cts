@@ -2,14 +2,18 @@
 * AUTO-GENERATED - DO NOT EDIT. Source: https://github.com/gpuweb/cts
 **/export const description = `
 renderPass store op test that drawn quad is either stored or cleared based on storeop
-
-TODO: is this duplicated with api,operation,render_pass,storeOp?
 `;import { makeTestGroup } from '../../../../common/framework/test_group.js';
 import { GPUTest } from '../../../gpu_test.js';
 
 export const g = makeTestGroup(GPUTest);
 
 g.test('storeOp_controls_whether_1x1_drawn_quad_is_stored').
+desc(
+`
+TODO: is this duplicated with api,operation,render_pass,storeOp?
+TODO: needs review and rename
+`).
+
 paramsSimple([
 { storeOp: 'store', _expected: 1 }, //
 { storeOp: 'discard', _expected: 0 }]).
@@ -26,9 +30,9 @@ fn(async t => {
     vertex: {
       module: t.device.createShaderModule({
         code: `
-            [[stage(vertex)]] fn main(
-              [[builtin(vertex_index)]] VertexIndex : u32
-              ) -> [[builtin(position)]] vec4<f32> {
+            @stage(vertex) fn main(
+              @builtin(vertex_index) VertexIndex : u32
+              ) -> @builtin(position) vec4<f32> {
               var pos : array<vec2<f32>, 3> = array<vec2<f32>, 3>(
                   vec2<f32>( 1.0, -1.0),
                   vec2<f32>( 1.0,  1.0),
@@ -42,7 +46,7 @@ fn(async t => {
     fragment: {
       module: t.device.createShaderModule({
         code: `
-            [[stage(fragment)]] fn main() -> [[location(0)]] vec4<f32> {
+            @stage(fragment) fn main() -> @location(0) vec4<f32> {
               return vec4<f32>(1.0, 0.0, 0.0, 1.0);
             }
             ` }),

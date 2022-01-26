@@ -120,6 +120,12 @@ g.test('GPUBlendComponent')
       .combine('srcFactor', kBlendFactors)
       .combine('dstFactor', kBlendFactors)
       .combine('operation', kBlendOperations)
+      .filter(t => {
+        if (t.operation === 'min' || t.operation === 'max') {
+          return t.srcFactor === 'one' && t.dstFactor === 'one';
+        }
+        return true;
+      })
       .beginSubcases()
       .combine('srcColor', [{ r: 0.11, g: 0.61, b: 0.81, a: 0.44 }])
       .combine('dstColor', [
@@ -184,12 +190,12 @@ g.test('GPUBlendComponent')
 
         module: t.device.createShaderModule({
           code: `
-[[block]] struct Uniform {
+struct Uniform {
   color: vec4<f32>;
 };
-[[group(0), binding(0)]] var<uniform> u : Uniform;
+@group(0) @binding(0) var<uniform> u : Uniform;
 
-[[stage(fragment)]] fn main() -> [[location(0)]] vec4<f32> {
+@stage(fragment) fn main() -> @location(0) vec4<f32> {
   return u.color;
 }
           `,
@@ -201,7 +207,7 @@ g.test('GPUBlendComponent')
       vertex: {
         module: t.device.createShaderModule({
           code: `
-[[stage(vertex)]] fn main() -> [[builtin(position)]] vec4<f32> {
+@stage(vertex) fn main() -> @builtin(position) vec4<f32> {
     return vec4<f32>(0.0, 0.0, 0.0, 1.0);
 }
           `,
