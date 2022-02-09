@@ -237,16 +237,7 @@ export const listing = [
       "operation",
       "memory_sync",
       "texture",
-      "rw_and_wr"
-    ]
-  },
-  {
-    "file": [
-      "api",
-      "operation",
-      "memory_sync",
-      "texture",
-      "ww"
+      "same_subresource"
     ]
   },
   {
@@ -1205,6 +1196,14 @@ export const listing = [
       "shader",
       "execution",
       "builtin",
+      "clamp"
+    ]
+  },
+  {
+    "file": [
+      "shader",
+      "execution",
+      "builtin",
       "cos"
     ]
   },
@@ -1261,6 +1260,14 @@ export const listing = [
       "shader",
       "execution",
       "builtin",
+      "max"
+    ]
+  },
+  {
+    "file": [
+      "shader",
+      "execution",
+      "builtin",
       "min"
     ]
   },
@@ -1278,6 +1285,38 @@ export const listing = [
       "execution",
       "builtin",
       "value_testing_built_in_functions"
+    ]
+  },
+  {
+    "file": [
+      "shader",
+      "execution",
+      "memory_model",
+      "atomicity"
+    ]
+  },
+  {
+    "file": [
+      "shader",
+      "execution",
+      "memory_model",
+      "barrier"
+    ]
+  },
+  {
+    "file": [
+      "shader",
+      "execution",
+      "memory_model",
+      "coherence"
+    ]
+  },
+  {
+    "file": [
+      "shader",
+      "execution",
+      "memory_model",
+      "weak"
     ]
   },
   {
