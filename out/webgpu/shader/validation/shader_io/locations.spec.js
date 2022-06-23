@@ -52,7 +52,7 @@ combine('target_stage', ['vertex', 'fragment', 'compute']).
 combine('target_io', ['in', 'out']).
 beginSubcases()).
 
-fn(t => {
+fn((t) => {
   const code = generateShader({
     attribute: '@location(0)',
     type: 'f32',
@@ -77,13 +77,13 @@ combine('use_struct', [true, false]).
 combineWithParams(kTestTypes).
 beginSubcases()).
 
-fn(t => {
+fn((t) => {
   let code = '';
 
   if (t.params.type === 'MyStruct') {
     // Generate a struct that contains a valid type.
     code += 'struct MyStruct {\n';
-    code += `  value : f32;\n`;
+    code += `  value : f32\n`;
     code += '};\n\n';
   }
 
@@ -107,15 +107,15 @@ combine('target_stage', ['vertex', 'fragment', '']).
 combine('target_io', ['in', 'out']).
 beginSubcases()).
 
-fn(t => {
+fn((t) => {
   let code = '';
 
   // Generate a struct that contains a valid type.
   code += 'struct Inner {\n';
-  code += `  @location(0) value : f32;\n`;
+  code += `  @location(0) value : f32\n`;
   code += '};\n\n';
   code += 'struct Outer {\n';
-  code += `  inner : Inner;\n`;
+  code += `  inner : Inner\n`;
   code += '};\n\n';
 
   code += generateShader({
@@ -144,7 +144,7 @@ u
 combine('second', ['p2', 's1b', 's2b', 'rb']).
 beginSubcases()).
 
-fn(t => {
+fn((t) => {
   const p1 = t.params.first === 'p1' ? '0' : '1';
   const p2 = t.params.second === 'p2' ? '0' : '2';
   const s1a = t.params.first === 's1a' ? '0' : '3';
@@ -155,18 +155,18 @@ fn(t => {
   const rb = t.params.second === 'rb' ? '0' : '2';
   const code = `
     struct S1 {
-      @location(${s1a}) a : f32;
-      @location(${s1b}) b : f32;
+      @location(${s1a}) a : f32,
+      @location(${s1b}) b : f32,
     };
     struct S2 {
-      @location(${s2a}) a : f32;
-      @location(${s2b}) b : f32;
+      @location(${s2a}) a : f32,
+      @location(${s2b}) b : f32,
     };
     struct R {
-      @location(${ra}) a : f32;
-      @location(${rb}) b : f32;
+      @location(${ra}) a : f32,
+      @location(${rb}) b : f32,
     };
-    @stage(fragment)
+    @fragment
     fn main(@location(${p1}) p1 : f32,
             @location(${p2}) p2 : f32,
             s1 : S1,

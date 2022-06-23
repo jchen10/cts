@@ -51,10 +51,10 @@ beginSubcases().
 combine('rowsPerImage', [undefined, 0, 1, 2, 1024]).
 combine('copyHeightInBlocks', [0, 1, 2]).
 combine('copyDepth', [1, 3]).
-unless(p => p.dimension === '1d' && p.copyHeightInBlocks !== 1).
-unless(p => p.copyDepth > p.size[2])).
+unless((p) => p.dimension === '1d' && p.copyHeightInBlocks !== 1).
+unless((p) => p.copyDepth > p.size[2])).
 
-fn(async t => {
+fn(async (t) => {
   const { rowsPerImage, copyHeightInBlocks, copyDepth, dimension, size, method } = t.params;
 
   const format = 'rgba8unorm';
@@ -99,7 +99,7 @@ combineWithParams([
 { bytesPerRow: 2 ** 31, rowsPerImage: 2 ** 31, depthOrArrayLayers: 16, _success: false } // bytesPerRow * rowsPerImage * (depthOrArrayLayers - 1) overflows.
 ])).
 
-fn(async t => {
+fn(async (t) => {
   const { method, bytesPerRow, rowsPerImage, depthOrArrayLayers, _success } = t.params;
 
   const texture = t.device.createTexture({
@@ -123,13 +123,13 @@ fn(async t => {
 g.test('required_bytes_in_copy').
 desc(
 `
-Test the computation of requiredBytesInCopy by computing the minumum data size for the copy and checking success/error at the boundary.
+Test the computation of requiredBytesInCopy by computing the minimum data size for the copy and checking success/error at the boundary.
 - for various copy methods
 - for all formats
 - for all dimensions
-- for various extra bytesPerRow/rowsPerIamge
+- for various extra bytesPerRow/rowsPerImage
 - for various copy sizes
-- for various offets in the linear data
+- for various offsets in the linear data
 `).
 
 params((u) =>
@@ -147,16 +147,16 @@ combineWithParams([
 { bytesPerRowPadding: 15, rowsPerImagePaddingInBlocks: 17 } // both paddings
 ]).
 combineWithParams([
-{ copyWidthInBlocks: 3, copyHeightInBlocks: 4, copyDepth: 5, offsetInBlocks: 0 }, // standard copy
-{ copyWidthInBlocks: 5, copyHeightInBlocks: 4, copyDepth: 3, offsetInBlocks: 11 }, // standard copy, offset > 0
-{ copyWidthInBlocks: 256, copyHeightInBlocks: 3, copyDepth: 2, offsetInBlocks: 0 }, // copyWidth is 256-aligned
-{ copyWidthInBlocks: 0, copyHeightInBlocks: 4, copyDepth: 5, offsetInBlocks: 0 }, // empty copy because of width
-{ copyWidthInBlocks: 3, copyHeightInBlocks: 0, copyDepth: 5, offsetInBlocks: 0 }, // empty copy because of height
-{ copyWidthInBlocks: 3, copyHeightInBlocks: 4, copyDepth: 0, offsetInBlocks: 13 }, // empty copy because of depth, offset > 0
-{ copyWidthInBlocks: 1, copyHeightInBlocks: 4, copyDepth: 5, offsetInBlocks: 0 }, // copyWidth = 1
-{ copyWidthInBlocks: 3, copyHeightInBlocks: 1, copyDepth: 5, offsetInBlocks: 15 }, // copyHeight = 1, offset > 0
-{ copyWidthInBlocks: 5, copyHeightInBlocks: 4, copyDepth: 1, offsetInBlocks: 0 }, // copyDepth = 1
-{ copyWidthInBlocks: 7, copyHeightInBlocks: 1, copyDepth: 1, offsetInBlocks: 0 } // copyHeight = 1 and copyDepth = 1
+{ copyWidthInBlocks: 3, copyHeightInBlocks: 4, copyDepth: 5, _offsetMultiplier: 0 }, // standard copy
+{ copyWidthInBlocks: 5, copyHeightInBlocks: 4, copyDepth: 3, _offsetMultiplier: 11 }, // standard copy, offset > 0
+{ copyWidthInBlocks: 256, copyHeightInBlocks: 3, copyDepth: 2, _offsetMultiplier: 0 }, // copyWidth is 256-aligned
+{ copyWidthInBlocks: 0, copyHeightInBlocks: 4, copyDepth: 5, _offsetMultiplier: 0 }, // empty copy because of width
+{ copyWidthInBlocks: 3, copyHeightInBlocks: 0, copyDepth: 5, _offsetMultiplier: 0 }, // empty copy because of height
+{ copyWidthInBlocks: 3, copyHeightInBlocks: 4, copyDepth: 0, _offsetMultiplier: 13 }, // empty copy because of depth, offset > 0
+{ copyWidthInBlocks: 1, copyHeightInBlocks: 4, copyDepth: 5, _offsetMultiplier: 0 }, // copyWidth = 1
+{ copyWidthInBlocks: 3, copyHeightInBlocks: 1, copyDepth: 5, _offsetMultiplier: 15 }, // copyHeight = 1, offset > 0
+{ copyWidthInBlocks: 5, copyHeightInBlocks: 4, copyDepth: 1, _offsetMultiplier: 0 }, // copyDepth = 1
+{ copyWidthInBlocks: 7, copyHeightInBlocks: 1, copyDepth: 1, _offsetMultiplier: 0 } // copyHeight = 1 and copyDepth = 1
 ])
 // The test texture size will be rounded up from the copy size to the next valid texture size.
 // If the format is a depth/stencil format, its copy size must equal to subresource's size.
@@ -168,11 +168,22 @@ combineWithParams([
     copyWidthInBlocks > 0 && copyHeightInBlocks > 0 && copyDepth > 0);
 
 }).
-unless(p => p.dimension === '1d' && (p.copyHeightInBlocks > 1 || p.copyDepth > 1))).
+unless((p) => p.dimension === '1d' && (p.copyHeightInBlocks > 1 || p.copyDepth > 1)).
+expand('bufferOffset', (p) => {
+  const info = kTextureFormatInfo[p.format];
+  if (info.depth || info.stencil) {
+    return [p._offsetMultiplier * 4];
+  }
+  return [p._offsetMultiplier * info.bytesPerBlock];
+})).
 
-fn(async t => {
+beforeAllSubcases((t) => {
+  const info = kTextureFormatInfo[t.params.format];
+  t.selectDeviceOrSkipTestCase(info.feature);
+}).
+fn(async (t) => {
   const {
-    offsetInBlocks,
+    bufferOffset,
     bytesPerRowPadding,
     rowsPerImagePaddingInBlocks,
     copyWidthInBlocks,
@@ -183,7 +194,6 @@ fn(async t => {
     method } =
   t.params;
   const info = kTextureFormatInfo[format];
-  await t.selectDeviceOrSkipTestCase(info.feature);
 
   // In the CopyB2T and CopyT2B cases we need to have bytesPerRow 256-aligned,
   // to make this happen we align the bytesInACompleteRow value and multiply
@@ -191,26 +201,25 @@ fn(async t => {
   const bytesPerRowAlignment = method === 'WriteTexture' ? 1 : 256;
   const copyWidth = copyWidthInBlocks * info.blockWidth;
   const copyHeight = copyHeightInBlocks * info.blockHeight;
-  const offset = offsetInBlocks * info.bytesPerBlock;
   const rowsPerImage = copyHeight + rowsPerImagePaddingInBlocks * info.blockHeight;
   const bytesPerRow =
   align(bytesInACompleteRow(copyWidth, format), bytesPerRowAlignment) +
   bytesPerRowPadding * bytesPerRowAlignment;
   const copySize = { width: copyWidth, height: copyHeight, depthOrArrayLayers: copyDepth };
 
-  const layout = { offset, bytesPerRow, rowsPerImage };
+  const layout = { bufferOffset, bytesPerRow, rowsPerImage };
   const minDataSize = dataBytesForCopyOrFail({ layout, format, copySize, method });
 
   const texture = t.createAlignedTexture(format, copySize, undefined, dimension);
 
-  t.testRun({ texture }, { offset, bytesPerRow, rowsPerImage }, copySize, {
+  t.testRun({ texture }, layout, copySize, {
     dataSize: minDataSize,
     method,
     success: true });
 
 
   if (minDataSize > 0) {
-    t.testRun({ texture }, { offset, bytesPerRow, rowsPerImage }, copySize, {
+    t.testRun({ texture }, layout, copySize, {
       dataSize: minDataSize - 1,
       method,
       success: false });
@@ -240,10 +249,13 @@ expand('rowsPerImage', texelBlockAlignmentTestExpanderForRowsPerImage)
 // Copy height is info.blockHeight, so rowsPerImage must be equal or greater than it.
 .filter(({ rowsPerImage, format }) => rowsPerImage >= kTextureFormatInfo[format].blockHeight)).
 
-fn(async t => {
+beforeAllSubcases((t) => {
+  const info = kTextureFormatInfo[t.params.format];
+  t.selectDeviceOrSkipTestCase(info.feature);
+}).
+fn(async (t) => {
   const { rowsPerImage, format, method } = t.params;
   const info = kTextureFormatInfo[format];
-  await t.selectDeviceOrSkipTestCase(info.feature);
 
   const size = { width: info.blockWidth, height: info.blockHeight, depthOrArrayLayers: 1 };
   const texture = t.device.createTexture({
@@ -279,10 +291,13 @@ filter(({ dimension, format }) => textureDimensionAndFormatCompatible(dimension,
 beginSubcases().
 expand('offset', texelBlockAlignmentTestExpanderForOffset)).
 
-fn(async t => {
+beforeAllSubcases((t) => {
+  const info = kTextureFormatInfo[t.params.format];
+  t.selectDeviceOrSkipTestCase(info.feature);
+}).
+fn(async (t) => {
   const { format, offset, method } = t.params;
   const info = kTextureFormatInfo[format];
-  await t.selectDeviceOrSkipTestCase(info.feature);
 
   const size = { width: info.blockWidth, height: info.blockHeight, depthOrArrayLayers: 1 };
   const texture = t.device.createTexture({
@@ -328,8 +343,8 @@ filter(({ dimension, format }) => textureDimensionAndFormatCompatible(dimension,
 beginSubcases().
 combine('copyHeightInBlocks', [1, 2]).
 combine('copyDepth', [1, 2]).
-unless(p => p.dimension === '1d' && (p.copyHeightInBlocks > 1 || p.copyDepth > 1)).
-expandWithParams(p => {
+unless((p) => p.dimension === '1d' && (p.copyHeightInBlocks > 1 || p.copyDepth > 1)).
+expandWithParams((p) => {
   const info = kTextureFormatInfo[p.format];
   // We currently have a built-in assumption that for all formats, 128 % bytesPerBlock === 0.
   // This assumption ensures that all division below results in integers.
@@ -380,7 +395,11 @@ expandWithParams(p => {
 
 })).
 
-fn(async t => {
+beforeAllSubcases((t) => {
+  const info = kTextureFormatInfo[t.params.format];
+  t.selectDeviceOrSkipTestCase(info.feature);
+}).
+fn(async (t) => {
   const {
     method,
     format,
@@ -392,7 +411,6 @@ fn(async t => {
     _success } =
   t.params;
   const info = kTextureFormatInfo[format];
-  await t.selectDeviceOrSkipTestCase(info.feature);
 
   // We create an aligned texture using the widthInBlocks which may be different from the
   // copyWidthInBlocks. This allows us to test scenarios where the two may be different.
@@ -436,7 +454,7 @@ beginSubcases().
 combine('offsetInBlocks', [0, 1, 2]).
 combine('dataSizeInBlocks', [0, 1, 2])).
 
-fn(async t => {
+fn(async (t) => {
   const { offsetInBlocks, dataSizeInBlocks, method } = t.params;
 
   const format = 'rgba8unorm';

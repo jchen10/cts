@@ -160,6 +160,7 @@ g.test('GPUBlendComponent')
     }
 
     const pipeline = t.device.createRenderPipeline({
+      layout: 'auto',
       fragment: {
         targets: [
           {
@@ -180,11 +181,11 @@ g.test('GPUBlendComponent')
         module: t.device.createShaderModule({
           code: `
 struct Uniform {
-  color: vec4<f32>;
+  color: vec4<f32>
 };
 @group(0) @binding(0) var<uniform> u : Uniform;
 
-@stage(fragment) fn main() -> @location(0) vec4<f32> {
+@fragment fn main() -> @location(0) vec4<f32> {
   return u.color;
 }
           `,
@@ -194,7 +195,7 @@ struct Uniform {
       vertex: {
         module: t.device.createShaderModule({
           code: `
-@stage(vertex) fn main() -> @builtin(position) vec4<f32> {
+@vertex fn main() -> @builtin(position) vec4<f32> {
     return vec4<f32>(0.0, 0.0, 0.0, 1.0);
 }
           `,
@@ -217,7 +218,8 @@ struct Uniform {
       colorAttachments: [
         {
           view: renderTarget.createView(),
-          loadValue: dstColor,
+          clearValue: dstColor,
+          loadOp: 'clear',
           storeOp: 'store',
         },
       ],
@@ -244,7 +246,7 @@ struct Uniform {
       })
     );
     renderPass.draw(1);
-    renderPass.endPass();
+    renderPass.end();
 
     t.device.queue.submit([commandEncoder.finish()]);
 

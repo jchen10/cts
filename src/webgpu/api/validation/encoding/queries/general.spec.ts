@@ -23,14 +23,15 @@ Tests that set occlusion query set with all types in render pass descriptor:
 - {undefined} for occlusion query set in render pass descriptor
   `
   )
-  .paramsSubcasesOnly(u => u.combine('type', [undefined, ...kQueryTypes]))
+  .params(u => u.combine('type', [undefined, ...kQueryTypes]))
+  .beforeAllSubcases(t => {
+    const { type } = t.params;
+    if (type) {
+      t.selectDeviceForQueryTypeOrSkipTestCase(type);
+    }
+  })
   .fn(async t => {
     const type = t.params.type;
-
-    if (type) {
-      await t.selectDeviceForQueryTypeOrSkipTestCase(type);
-    }
-
     const querySet = type === undefined ? undefined : createQuerySetWithType(t, type, 1);
 
     const encoder = t.createEncoder('render pass', { occlusionQuerySet: querySet });
@@ -78,25 +79,28 @@ g.test('timestamp_query,query_type_and_index')
 Tests that write timestamp to all types of query set on all possible encoders:
 - type {occlusion, pipeline statistics, timestamp}
 - queryIndex {in, out of} range for GPUQuerySet
-- x= {non-pass, compute, render} encoder
+- x= {non-pass} encoder
   `
   )
   .params(u =>
     u
-      .combine('encoderType', ['non-pass', 'compute pass', 'render pass'] as const)
       .combine('type', kQueryTypes)
       .beginSubcases()
       .expand('queryIndex', p => (p.type === 'timestamp' ? [0, 2] : [0]))
   )
+  .beforeAllSubcases(t => {
+    const { type } = t.params;
+    if (type) {
+      t.selectDeviceForQueryTypeOrSkipTestCase(type);
+    }
+  })
   .fn(async t => {
-    const { encoderType, type, queryIndex } = t.params;
-
-    await t.selectDeviceForQueryTypeOrSkipTestCase(type);
+    const { type, queryIndex } = t.params;
 
     const count = 2;
     const querySet = createQuerySetWithType(t, type, count);
 
-    const encoder = t.createEncoder(encoderType);
+    const encoder = t.createEncoder('non-pass');
     encoder.encoder.writeTimestamp(querySet, queryIndex);
     encoder.validateFinish(type === 'timestamp' && queryIndex < count);
   });
@@ -105,33 +109,44 @@ g.test('timestamp_query,invalid_query_set')
   .desc(
     `
 Tests that write timestamp to a invalid query set that failed during creation:
-- x= {non-pass, compute, render} enconder
+- x= {non-pass} encoder
   `
   )
-  .paramsSubcasesOnly(u =>
-    u
-      .combine('encoderType', ['non-pass', 'compute pass', 'render pass'] as const)
-      .combine('querySetState', ['valid', 'invalid'] as const)
-  )
+  .paramsSubcasesOnly(u => u.combine('querySetState', ['valid', 'invalid'] as const))
+  .beforeAllSubcases(t => {
+    t.selectDeviceForQueryTypeOrSkipTestCase('timestamp');
+  })
   .fn(async t => {
-    const { encoderType, querySetState } = t.params;
-    await t.selectDeviceForQueryTypeOrSkipTestCase('timestamp');
+    const { querySetState } = t.params;
 
     const querySet = t.createQuerySetWithState(querySetState, {
       type: 'timestamp',
       count: 2,
     });
 
-    const encoder = t.createEncoder(encoderType);
+    const encoder = t.createEncoder('non-pass');
     encoder.encoder.writeTimestamp(querySet, 0);
     encoder.validateFinish(querySetState !== 'invalid');
   });
 
 g.test('timestamp_query,device_mismatch')
   .desc('Tests writeTimestamp cannot be called with a query set created from another device')
-  .paramsSubcasesOnly(u =>
-    u
-      .combine('encoderType', ['non-pass', 'compute pass', 'render pass'] as const)
-      .combine('mismatched', [true, false])
-  )
-  .unimplemented();
+  .paramsSubcasesOnly(u => u.combine('mismatched', [true, false]))
+  .beforeAllSubcases(t => {
+    t.selectDeviceForQueryTypeOrSkipTestCase('timestamp');
+    t.selectMismatchedDeviceOrSkipTestCase('timestamp-query');
+  })
+  .fn(async t => {
+    const { mismatched } = t.params;
+    const device = mismatched ? t.mismatchedDevice : t.device;
+
+    const querySet = device.createQuerySet({
+      type: 'timestamp',
+      count: 2,
+    });
+    t.trackForCleanup(querySet);
+
+    const encoder = t.createEncoder('non-pass');
+    encoder.encoder.writeTimestamp(querySet, 0);
+    encoder.validateFinish(!mismatched);
+  });

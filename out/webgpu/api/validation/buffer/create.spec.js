@@ -32,7 +32,7 @@ kBufferSizeAlignment * 1.5,
 kBufferSizeAlignment * 2])).
 
 
-fn(t => {
+fn((t) => {
   const { mappedAtCreation, size } = t.params;
   const isValid = !mappedAtCreation || size % kBufferSizeAlignment === 0;
   const usage = BufferUsage.COPY_SRC;
@@ -55,7 +55,7 @@ combine('usage2', [0, ...kBufferUsages, kInvalidUsage]).
 beginSubcases().
 combine('mappedAtCreation', [false, true])).
 
-fn(t => {
+fn((t) => {
   const { mappedAtCreation, usage1, usage2 } = t.params;
   const usage = usage1 | usage2;
 
@@ -93,14 +93,10 @@ u.combineWithParams([
 { usage: BufferUsage.MAP_WRITE | BufferUsage.UNIFORM, size: 0x20_0000_0000 }, // 128 GiB
 { usage: BufferUsage.MAP_READ | BufferUsage.UNIFORM, size: 16 },
 { usage: BufferUsage.MAP_READ | BufferUsage.UNIFORM, size: kMaxSafeMultipleOf8 },
-{ usage: BufferUsage.MAP_READ | BufferUsage.UNIFORM, size: 0x20_0000_0000 }, // 128 GiB
-// Invalid because size is not aligned to 4 bytes.
-{ usage: BufferUsage.STORAGE, size: 15 },
-{ usage: BufferUsage.STORAGE, size: kMaxSafeMultipleOf8 - 1 },
-{ usage: BufferUsage.STORAGE, size: 0x20_0000_0000 - 1 } // 128 GiB - 1
+{ usage: BufferUsage.MAP_READ | BufferUsage.UNIFORM, size: 0x20_0000_0000 } // 128 GiB
 ])).
 
-fn(t => {
+fn((t) => {
   const { _valid, usage, size } = t.params;
 
   t.expectGPUError('validation', () => t.device.createBuffer({ size, usage }), !_valid);

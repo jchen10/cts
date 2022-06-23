@@ -38,8 +38,8 @@ const watcher = chokidar.watch(srcDir, {
 
 
 /**
-                        * Handler to dirty the compile cache for changed .ts files.
-                        */
+ * Handler to dirty the compile cache for changed .ts files.
+ */
 function dirtyCompileCache(absPath, stats) {
   const relPath = path.relative(srcDir, absPath);
   if ((stats === undefined || stats.isFile()) && relPath.endsWith('.ts')) {
@@ -52,12 +52,12 @@ function dirtyCompileCache(absPath, stats) {
 }
 
 /**
-   * Handler to dirty the listing cache for:
-   *  - Directory changes
-   *  - .spec.ts changes
-   *  - README.txt changes
-   * Also dirties the compile cache for changed files.
-   */
+ * Handler to dirty the listing cache for:
+ *  - Directory changes
+ *  - .spec.ts changes
+ *  - README.txt changes
+ * Also dirties the compile cache for changed files.
+ */
 function dirtyListingAndCompileCache(absPath, stats) {
   const relPath = path.relative(srcDir, absPath);
 
@@ -95,9 +95,7 @@ const app = express();
 app.use((req, res, next) => {
   res.header('Origin-Trial', [
   // Token for http://localhost:8080
-  'AhE99tXCz7rNPbO9trRshOXiTObuhJOKUFfJi6mfwaVOlPJgsKyWSFUx7ZPzAWuNs4lEluGMIHpTD45OxcrrCQoAAABJeyJvcmlnaW4iOiJodHRwOi8vbG9jYWxob3N0OjgwODAiLCJmZWF0dXJlIjoiV2ViR1BVIiwiZXhwaXJ5IjoxNjQzMTU1MTk5fQ==',
-  // Token for http://localhost:8081
-  'AomphwDQ4T13IQ60e0AoVyx8nETxPfRb8KxRUHab+ZuRBqynAAu6WIV8x6uRQKZkuqTe4fG3adBOUXTK2dC7lg8AAABJeyJvcmlnaW4iOiJodHRwOi8vbG9jYWxob3N0OjgwODEiLCJmZWF0dXJlIjoiV2ViR1BVIiwiZXhwaXJ5IjoxNjQzMTU1MTk5fQ==']);
+  'AvyDIV+RJoYs8fn3W6kIrBhWw0te0klraoz04mw/nPb8VTus3w5HCdy+vXqsSzomIH745CT6B5j1naHgWqt/tw8AAABJeyJvcmlnaW4iOiJodHRwOi8vbG9jYWxob3N0OjgwODAiLCJmZWF0dXJlIjoiV2ViR1BVIiwiZXhwaXJ5IjoxNjYzNzE4Mzk5fQ==']);
 
   next();
 });

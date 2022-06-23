@@ -4,28 +4,43 @@
 import { GPUTest } from '../../../../gpu_test.js';
 
 export class ProgrammableStateTest extends GPUTest {
-  encoder = null;
+  commonBindGroupLayouts = new Map();
 
-  get bindGroupLayout() {
-    if (!this.commonBindGroupLayout) {
-      this.commonBindGroupLayout = this.device.createBindGroupLayout({
-        entries: [
-          {
-            binding: 0,
-            visibility: GPUShaderStage.COMPUTE | GPUShaderStage.FRAGMENT,
-            buffer: { type: 'storage' },
-          },
-        ],
-      });
+  getBindGroupLayout(type) {
+    if (!this.commonBindGroupLayouts.has(type)) {
+      this.commonBindGroupLayouts.set(
+        type,
+        this.device.createBindGroupLayout({
+          entries: [
+            {
+              binding: 0,
+              visibility: GPUShaderStage.COMPUTE | GPUShaderStage.FRAGMENT,
+              buffer: { type },
+            },
+          ],
+        })
+      );
     }
-    return this.commonBindGroupLayout;
+    return this.commonBindGroupLayouts.get(type);
   }
 
-  createBindGroup(buffer) {
+  getBindGroupLayouts(indices) {
+    const bindGroupLayouts = [];
+    bindGroupLayouts[indices.a] = this.getBindGroupLayout('read-only-storage');
+    bindGroupLayouts[indices.b] = this.getBindGroupLayout('read-only-storage');
+    bindGroupLayouts[indices.out] = this.getBindGroupLayout('storage');
+    return bindGroupLayouts;
+  }
+
+  createBindGroup(buffer, type) {
     return this.device.createBindGroup({
-      layout: this.bindGroupLayout,
+      layout: this.getBindGroupLayout(type),
       entries: [{ binding: 0, resource: { buffer } }],
     });
+  }
+
+  setBindGroup(encoder, index, factory) {
+    encoder.setBindGroup(index, factory(index));
   }
 
   // Create a compute pipeline that performs an operation on data from two bind groups,
@@ -34,14 +49,14 @@ export class ProgrammableStateTest extends GPUTest {
     switch (encoderType) {
       case 'compute pass': {
         const wgsl = `struct Data {
-            value : i32;
+            value : i32
           };
 
           @group(${groups.a}) @binding(0) var<storage> a : Data;
           @group(${groups.b}) @binding(0) var<storage> b : Data;
           @group(${groups.out}) @binding(0) var<storage, read_write> out : Data;
 
-          @stage(compute) @workgroup_size(1) fn main() {
+          @compute @workgroup_size(1) fn main() {
             out.value = ${algorithm};
             return;
           }
@@ -49,7 +64,7 @@ export class ProgrammableStateTest extends GPUTest {
 
         return this.device.createComputePipeline({
           layout: this.device.createPipelineLayout({
-            bindGroupLayouts: [this.bindGroupLayout, this.bindGroupLayout, this.bindGroupLayout],
+            bindGroupLayouts: this.getBindGroupLayouts(groups),
           }),
 
           compute: {
@@ -65,21 +80,21 @@ export class ProgrammableStateTest extends GPUTest {
       case 'render bundle': {
         const wgslShaders = {
           vertex: `
-            @stage(vertex) fn vert_main() -> @builtin(position) vec4<f32> {
+            @vertex fn vert_main() -> @builtin(position) vec4<f32> {
               return vec4<f32>(0.5, 0.5, 0.0, 1.0);
             }
           `,
 
           fragment: `
             struct Data {
-              value : i32;
+              value : i32
             };
 
             @group(${groups.a}) @binding(0) var<storage> a : Data;
             @group(${groups.b}) @binding(0) var<storage> b : Data;
             @group(${groups.out}) @binding(0) var<storage, read_write> out : Data;
 
-            @stage(fragment) fn frag_main() -> @location(0) vec4<f32> {
+            @fragment fn frag_main() -> @location(0) vec4<f32> {
               out.value = ${algorithm};
               return vec4<f32>(1.0, 0.0, 0.0, 1.0);
             }
@@ -88,7 +103,7 @@ export class ProgrammableStateTest extends GPUTest {
 
         return this.device.createRenderPipeline({
           layout: this.device.createPipelineLayout({
-            bindGroupLayouts: [this.bindGroupLayout, this.bindGroupLayout, this.bindGroupLayout],
+            bindGroupLayouts: this.getBindGroupLayouts(groups),
           }),
 
           vertex: {
@@ -126,7 +141,7 @@ export class ProgrammableStateTest extends GPUTest {
 
   dispatchOrDraw(pass) {
     if (pass instanceof GPUComputePassEncoder) {
-      pass.dispatch(1);
+      pass.dispatchWorkgroups(1);
     } else if (pass instanceof GPURenderPassEncoder) {
       pass.draw(1);
     } else if (pass instanceof GPURenderBundleEncoder) {

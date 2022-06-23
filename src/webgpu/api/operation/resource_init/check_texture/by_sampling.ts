@@ -52,23 +52,24 @@ export const checkContentsBySampling: CheckContents = (
         ? 'i32(GlobalInvocationID.x)'
         : unreachable();
     const computePipeline = t.device.createComputePipeline({
+      layout: 'auto',
       compute: {
         entryPoint: 'main',
         module: t.device.createShaderModule({
           code: `
             struct Constants {
-              level : i32;
+              level : i32
             };
 
             @group(0) @binding(0) var<uniform> constants : Constants;
             @group(0) @binding(1) var myTexture : texture${_multisampled}${_xd}<${shaderType}>;
 
             struct Result {
-              values : @stride(4) array<${shaderType}>;
+              values : array<${shaderType}>
             };
             @group(0) @binding(3) var<storage, read_write> result : Result;
 
-            @stage(compute) @workgroup_size(1)
+            @compute @workgroup_size(1)
             fn main(@builtin(global_invocation_id) GlobalInvocationID : vec3<u32>) {
               let flatIndex : u32 = ${componentCount}u * (
                 ${width}u * ${height}u * GlobalInvocationID.z +
@@ -115,6 +116,7 @@ export const checkContentsBySampling: CheckContents = (
             resource: texture.createView({
               baseArrayLayer: layer,
               arrayLayerCount: 1,
+              dimension: params.dimension,
             }),
           },
           {
@@ -130,8 +132,8 @@ export const checkContentsBySampling: CheckContents = (
       const pass = commandEncoder.beginComputePass();
       pass.setPipeline(computePipeline);
       pass.setBindGroup(0, bindGroup);
-      pass.dispatch(width, height, depth);
-      pass.endPass();
+      pass.dispatchWorkgroups(width, height, depth);
+      pass.end();
       t.queue.submit([commandEncoder.finish()]);
       ubo.destroy();
 

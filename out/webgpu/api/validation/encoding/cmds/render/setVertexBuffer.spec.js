@@ -3,7 +3,8 @@
 **/export const description = `
 Validation tests for setVertexBuffer on render pass and render bundle.
 `;import { makeTestGroup } from '../../../../../../common/framework/test_group.js';
-import { GPUConst, DefaultLimits } from '../../../../../constants.js';
+import { kLimitInfo } from '../../../../../capability_info.js';
+import { GPUConst } from '../../../../../constants.js';
 import { kResourceStates } from '../../../../../gpu_test.js';
 import { ValidationTest } from '../../../validation_test.js';
 
@@ -20,11 +21,11 @@ Tests slot must be less than the maxVertexBuffers in device limits.
 paramsSubcasesOnly(
 kRenderEncodeTypeParams.combine('slot', [
 0,
-DefaultLimits.maxVertexBuffers - 1,
-DefaultLimits.maxVertexBuffers])).
+kLimitInfo.maxVertexBuffers.default - 1,
+kLimitInfo.maxVertexBuffers.default])).
 
 
-fn(t => {
+fn((t) => {
   const { encoderType, slot } = t.params;
   const vertexBuffer = t.createBufferWithState('valid', {
     size: 16,
@@ -33,17 +34,17 @@ fn(t => {
 
   const { encoder, validateFinish } = t.createEncoder(encoderType);
   encoder.setVertexBuffer(slot, vertexBuffer);
-  validateFinish(slot < DefaultLimits.maxVertexBuffers);
+  validateFinish(slot < kLimitInfo.maxVertexBuffers.default);
 });
 
-g.test('vertex_buffer').
+g.test('vertex_buffer_state').
 desc(
 `
 Tests vertex buffer must be valid.
   `).
 
 paramsSubcasesOnly(kRenderEncodeTypeParams.combine('state', kResourceStates)).
-fn(t => {
+fn((t) => {
   const { encoderType, state } = t.params;
   const vertexBuffer = t.createBufferWithState(state, {
     size: 16,
@@ -58,7 +59,23 @@ fn(t => {
 g.test('vertex_buffer,device_mismatch').
 desc('Tests setVertexBuffer cannot be called with a vertex buffer created from another device').
 paramsSubcasesOnly(kRenderEncodeTypeParams.combine('mismatched', [true, false])).
-unimplemented();
+beforeAllSubcases((t) => {
+  t.selectMismatchedDeviceOrSkipTestCase(undefined);
+}).
+fn(async (t) => {
+  const { encoderType, mismatched } = t.params;
+  const device = mismatched ? t.mismatchedDevice : t.device;
+
+  const vertexBuffer = device.createBuffer({
+    size: 16,
+    usage: GPUBufferUsage.VERTEX });
+
+  t.trackForCleanup(vertexBuffer);
+
+  const { encoder, validateFinish } = t.createEncoder(encoderType);
+  encoder.setVertexBuffer(0, vertexBuffer);
+  validateFinish(!mismatched);
+});
 
 g.test('vertex_buffer_usage').
 desc(
@@ -73,7 +90,7 @@ GPUConst.BufferUsage.COPY_DST,
 GPUConst.BufferUsage.COPY_DST | GPUConst.BufferUsage.VERTEX])).
 
 
-fn(t => {
+fn((t) => {
   const { encoderType, usage } = t.params;
   const vertexBuffer = t.device.createBuffer({
     size: 16,
@@ -92,7 +109,7 @@ Tests offset must be a multiple of 4.
   `).
 
 paramsSubcasesOnly(kRenderEncodeTypeParams.combine('offset', [0, 2, 4])).
-fn(t => {
+fn((t) => {
   const { encoderType, offset } = t.params;
   const vertexBuffer = t.device.createBuffer({
     size: 16,
@@ -111,7 +128,7 @@ Tests offset and size cannot be larger than vertex buffer size.
   `).
 
 paramsSubcasesOnly(buildBufferOffsetAndSizeOOBTestParams(4, 256)).
-fn(t => {
+fn((t) => {
   const { encoderType, offset, size, _valid } = t.params;
   const vertexBuffer = t.device.createBuffer({
     size: 256,

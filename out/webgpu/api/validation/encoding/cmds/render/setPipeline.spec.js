@@ -19,7 +19,7 @@ Tests setPipeline should generate an error iff using an 'invalid' pipeline.
 paramsSubcasesOnly((u) =>
 u.combine('encoderType', kRenderEncodeTypes).combine('state', ['valid', 'invalid'])).
 
-fn(t => {
+fn((t) => {
   const { encoderType, state } = t.params;
   const pipeline = t.createRenderPipelineWithState(state);
 
@@ -31,5 +31,33 @@ fn(t => {
 g.test('pipeline,device_mismatch').
 desc('Tests setPipeline cannot be called with a render pipeline created from another device').
 paramsSubcasesOnly(kRenderEncodeTypeParams.combine('mismatched', [true, false])).
-unimplemented();
+beforeAllSubcases((t) => {
+  t.selectMismatchedDeviceOrSkipTestCase(undefined);
+}).
+fn(async (t) => {
+  const { encoderType, mismatched } = t.params;
+  const device = mismatched ? t.mismatchedDevice : t.device;
+
+  const pipeline = device.createRenderPipeline({
+    layout: 'auto',
+    vertex: {
+      module: device.createShaderModule({
+        code: `@vertex fn main() -> @builtin(position) vec4<f32> { return vec4<f32>(); }` }),
+
+      entryPoint: 'main' },
+
+    fragment: {
+      module: device.createShaderModule({
+        code: '@fragment fn main() {}' }),
+
+      entryPoint: 'main',
+      targets: [{ format: 'rgba8unorm', writeMask: 0 }] },
+
+    primitive: { topology: 'triangle-list' } });
+
+
+  const { encoder, validateFinish } = t.createEncoder(encoderType);
+  encoder.setPipeline(pipeline);
+  validateFinish(!mismatched);
+});
 //# sourceMappingURL=setPipeline.spec.js.map

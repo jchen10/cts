@@ -21,8 +21,8 @@ import { GPUTest } from './gpu_test.js';
 
 export const g = makeTestGroup(GPUTest);
 
-// Note: spaces in test names are replaced with underscores: webgpu:examples:test_name=
-g.test('test_name').fn(t => {});
+// Note: spaces aren't allowed in test names; use underscores.
+g.test('test_name').fn((t) => {});
 
 g.test('not_implemented_yet,without_plan').unimplemented();
 g.test('not_implemented_yet,with_plan').
@@ -35,7 +35,7 @@ Plan for this test. What it tests. Summary of how it tests that functionality.
 
 unimplemented();
 
-g.test('basic').fn(t => {
+g.test('basic').fn((t) => {
   t.expect(true);
   t.expect(true, 'true should be true');
 
@@ -51,7 +51,7 @@ g.test('basic').fn(t => {
 
 });
 
-g.test('basic,async').fn(async t => {
+g.test('basic,async').fn(async (t) => {
   // shouldReject must be awaited to ensure it can wait for the promise before the test ends.
   t.shouldReject(
   // The expected '.name' of the thrown error.
@@ -90,7 +90,7 @@ paramsSimple([
 { x: 2, y: 2 }, //
 { x: -10, y: -10 }]).
 
-fn(t => {
+fn((t) => {
   t.expect(t.params.x === t.params.y);
 });
 
@@ -112,7 +112,7 @@ paramsSimple([
 { x: 2, y: 4, _result: 6 }, //
 { x: -10, y: 18, _result: 8 }]).
 
-fn(t => {
+fn((t) => {
   t.expect(t.params.x + t.params.y === t.params._result);
 });
 // (note the blank comment above to enforce newlines on autoformat)
@@ -205,12 +205,12 @@ combineWithParams([{ y: 1 }, { y: 2 }])).
 
 fn(() => {});
 
-g.test('gpu,async').fn(async t => {
+g.test('gpu,async').fn(async (t) => {
   const x = await t.queue.onSubmittedWorkDone();
   t.expect(x === undefined);
 });
 
-g.test('gpu,buffers').fn(async t => {
+g.test('gpu,buffers').fn(async (t) => {
   const data = new Uint32Array([0, 1234, 0]);
   const src = t.makeBufferWithContents(data, GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST);
 
@@ -227,26 +227,24 @@ desc(
 `Example of a test using a device descriptor.
 Tests that a BC format passes validation iff the feature is enabled.`).
 
-params(u => u.combine('textureCompressionBC', [false, true])).
-fn(async t => {
+params((u) => u.combine('textureCompressionBC', [false, true])).
+beforeAllSubcases((t) => {
   const { textureCompressionBC } = t.params;
 
   if (textureCompressionBC) {
-    await t.selectDeviceOrSkipTestCase('texture-compression-bc');
+    t.selectDeviceOrSkipTestCase('texture-compression-bc');
   }
-
+}).
+fn(async (t) => {
+  const { textureCompressionBC } = t.params;
   const shouldError = !textureCompressionBC;
-  t.expectGPUError(
-  'validation',
-  () => {
+  t.shouldThrow(shouldError ? 'TypeError' : false, () => {
     t.device.createTexture({
       format: 'bc1-rgba-unorm',
       size: [4, 4, 1],
       usage: GPUTextureUsage.TEXTURE_BINDING });
 
-  },
-  shouldError);
-
+  });
 });
 
 g.test('gpu,with_texture_compression,etc2').
@@ -254,25 +252,24 @@ desc(
 `Example of a test using a device descriptor.
 Tests that an ETC2 format passes validation iff the feature is enabled.`).
 
-params(u => u.combine('textureCompressionETC2', [false, true])).
-fn(async t => {
+params((u) => u.combine('textureCompressionETC2', [false, true])).
+beforeAllSubcases((t) => {
   const { textureCompressionETC2 } = t.params;
 
   if (textureCompressionETC2) {
-    await t.selectDeviceOrSkipTestCase('texture-compression-etc2');
+    t.selectDeviceOrSkipTestCase('texture-compression-etc2');
   }
+}).
+fn(async (t) => {
+  const { textureCompressionETC2 } = t.params;
 
   const shouldError = !textureCompressionETC2;
-  t.expectGPUError(
-  'validation',
-  () => {
+  t.shouldThrow(shouldError ? 'TypeError' : false, () => {
     t.device.createTexture({
       format: 'etc2-rgb8unorm',
       size: [4, 4, 1],
       usage: GPUTextureUsage.TEXTURE_BINDING });
 
-  },
-  shouldError);
-
+  });
 });
 //# sourceMappingURL=examples.spec.js.map

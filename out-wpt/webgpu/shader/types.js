@@ -50,6 +50,26 @@ export const kMatrixContainerTypeInfo = {
 /** List of all matNxN<> container types. */
 export const kMatrixContainerTypes = keysOf(kMatrixContainerTypeInfo);
 
+/** List of texel formats and their shader representation */
+export const TexelFormats = [
+  { format: 'rgba8unorm', _shaderType: 'f32' },
+  { format: 'rgba8snorm', _shaderType: 'f32' },
+  { format: 'rgba8uint', _shaderType: 'u32' },
+  { format: 'rgba8sint', _shaderType: 'i32' },
+  { format: 'rgba16uint', _shaderType: 'u32' },
+  { format: 'rgba16sint', _shaderType: 'i32' },
+  { format: 'rgba16float', _shaderType: 'f32' },
+  { format: 'r32uint', _shaderType: 'u32' },
+  { format: 'r32sint', _shaderType: 'i32' },
+  { format: 'r32float', _shaderType: 'f32' },
+  { format: 'rg32uint', _shaderType: 'u32' },
+  { format: 'rg32sint', _shaderType: 'i32' },
+  { format: 'rg32float', _shaderType: 'f32' },
+  { format: 'rgba32uint', _shaderType: 'i32' },
+  { format: 'rgba32sint', _shaderType: 'i32' },
+  { format: 'rgba32float', _shaderType: 'f32' },
+];
+
 /**
  * Generate a bunch types (vec, mat, sized/unsized array) for testing.
  */
@@ -126,7 +146,7 @@ export function* generateTypes({ storageClass, baseType, containerType, isAtomic
     // Sized
     if (storageClass === 'uniform') {
       yield {
-        type: `@stride(16) array<${scalarType},${kArrayLength}>`,
+        type: `array<vec4<${scalarType}>,${kArrayLength}>`,
         _kTypeInfo: arrayTypeInfo,
       };
     } else {

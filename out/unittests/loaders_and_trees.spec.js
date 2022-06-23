@@ -81,16 +81,16 @@ const specsData = {
     description: 'desc 2b',
     g: (() => {
       const g = makeTestGroupForUnitTesting(UnitTest);
-      g.test('blah').fn(t => {
+      g.test('blah').fn((t) => {
         t.debug('OK');
       });
       g.test('bleh').
       paramsSimple([{ a: 1 }]).
-      fn(t => {
+      fn((t) => {
         t.debug('OK');
         t.debug('OK');
       });
-      g.test('bluh,a').fn(t => {
+      g.test('bluh,a').fn((t) => {
         t.fail('goodbye');
       });
       return g;
@@ -110,39 +110,73 @@ class FakeTestFileLoader extends TestFileLoader {
 
 
 class LoadingTest extends UnitTest {
-  static loader = new FakeTestFileLoader();
+  loader = new FakeTestFileLoader();
+  events = [];
+  isListenersAdded = false;
+
+  collectEvents() {
+    this.events = [];
+    if (!this.isListenersAdded) {
+      this.isListenersAdded = true;
+      this.loader.addEventListener('import', (ev) => this.events.push(ev.data.url));
+      this.loader.addEventListener('finish', (ev) => this.events.push(null));
+    }
+  }
 
   async load(query) {
-    return Array.from(await LoadingTest.loader.loadCases(parseQuery(query)));
+    return Array.from(await this.loader.loadCases(parseQuery(query)));
   }
 
   async loadNames(query) {
-    return (await this.load(query)).map(c => c.query.toString());
+    return (await this.load(query)).map((c) => c.query.toString());
   }}
 
 
 export const g = makeTestGroup(LoadingTest);
 
-g.test('suite').fn(async t => {
+g.test('suite').fn(async (t) => {
   t.shouldReject('Error', t.load('suite1'));
   t.shouldReject('Error', t.load('suite1:'));
 });
 
-g.test('group').fn(async t => {
+g.test('group').fn(async (t) => {
+  t.collectEvents();
   t.expect((await t.load('suite1:*')).length === 8);
+  t.expect(
+  objectEquals(t.events, [
+  'suite1/foo.spec.js',
+  'suite1/bar/biz.spec.js',
+  'suite1/bar/buzz/buzz.spec.js',
+  'suite1/baz.spec.js',
+  null]));
+
+
+
+  t.collectEvents();
   t.expect((await t.load('suite1:foo,*')).length === 3); // x:foo,* matches x:foo:
+  t.expect(objectEquals(t.events, ['suite1/foo.spec.js', null]));
+
+  t.collectEvents();
   t.expect((await t.load('suite1:bar,*')).length === 1);
+  t.expect(
+  objectEquals(t.events, ['suite1/bar/biz.spec.js', 'suite1/bar/buzz/buzz.spec.js', null]));
+
+
+  t.collectEvents();
   t.expect((await t.load('suite1:bar,buzz,buzz,*')).length === 1);
+  t.expect(objectEquals(t.events, ['suite1/bar/buzz/buzz.spec.js', null]));
 
   t.shouldReject('Error', t.load('suite1:f*'));
 
   {
     const s = new TestQueryMultiFile('suite1', ['bar', 'buzz']).toString();
+    t.collectEvents();
     t.expect((await t.load(s)).length === 1);
+    t.expect(objectEquals(t.events, ['suite1/bar/buzz/buzz.spec.js', null]));
   }
 });
 
-g.test('test').fn(async t => {
+g.test('test').fn(async (t) => {
   t.shouldReject('Error', t.load('suite1::'));
   t.shouldReject('Error', t.load('suite1:bar:'));
   t.shouldReject('Error', t.load('suite1:bar,:'));
@@ -164,7 +198,7 @@ g.test('test').fn(async t => {
   }
 });
 
-g.test('case').fn(async t => {
+g.test('case').fn(async (t) => {
   t.shouldReject('Error', t.load('suite1:foo::'));
   t.shouldReject('Error', t.load('suite1:bar:zed,:'));
 
@@ -223,10 +257,10 @@ logs)
   t.expect(res.status === status);
   t.expect(res.timems >= 0);
   assert(res.logs !== undefined); // only undefined while pending
-  t.expect(logs(res.logs.map(l => JSON.stringify(l))));
+  t.expect(logs(res.logs.map((l) => JSON.stringify(l))));
 }
 
-g.test('end2end').fn(async t => {
+g.test('end2end').fn(async (t) => {
   const l = await t.load('suite2:foof:*');
   assert(l.length === 3, 'listing length');
 
@@ -240,7 +274,7 @@ g.test('end2end').fn(async t => {
   new TestQuerySingleCase('suite2', ['foof'], ['blah'], {}),
   [],
   'pass',
-  logs => objectEquals(logs, ['"DEBUG: OK"']));
+  (logs) => objectEquals(logs, ['"DEBUG: OK"']));
 
   await runTestcase(
   t,
@@ -250,7 +284,7 @@ g.test('end2end').fn(async t => {
   new TestQuerySingleCase('suite2', ['foof'], ['bleh'], { a: 1 }),
   [],
   'pass',
-  logs => objectEquals(logs, ['"DEBUG: OK"', '"DEBUG: OK"']));
+  (logs) => objectEquals(logs, ['"DEBUG: OK"', '"DEBUG: OK"']));
 
   await runTestcase(
   t,
@@ -267,7 +301,7 @@ g.test('end2end').fn(async t => {
 
 });
 
-g.test('expectations,single_case').fn(async t => {
+g.test('expectations,single_case').fn(async (t) => {
   const log = new Logger({ overrideDebugMode: true });
   const zedCases = await t.load('suite1:baz:zed:*');
 
@@ -287,7 +321,7 @@ g.test('expectations,single_case').fn(async t => {
   new TestQuerySingleCase('suite1', ['baz'], ['zed'], { a: 1, b: 2 }),
   zedExpectationsSkipA1B2,
   'skip',
-  logs => logs.length === 1 && logs[0].startsWith('"SKIP: Skipped by expectations"'));
+  (logs) => logs.length === 1 && logs[0].startsWith('"SKIP: Skipped by expectations"'));
 
 
   await runTestcase(
@@ -298,11 +332,11 @@ g.test('expectations,single_case').fn(async t => {
   new TestQuerySingleCase('suite1', ['baz'], ['zed'], { a: 1, b: 3 }),
   zedExpectationsSkipA1B2,
   'pass',
-  logs => logs.length === 0);
+  (logs) => logs.length === 0);
 
 });
 
-g.test('expectations,single_case,none').fn(async t => {
+g.test('expectations,single_case,none').fn(async (t) => {
   const log = new Logger({ overrideDebugMode: true });
   const zedCases = await t.load('suite1:baz:zed:*');
   // Single-case. Doesn't cover any cases.
@@ -321,7 +355,7 @@ g.test('expectations,single_case,none').fn(async t => {
   new TestQuerySingleCase('suite1', ['baz'], ['zed'], { a: 1, b: 2 }),
   zedExpectationsSkipA1B0,
   'pass',
-  logs => logs.length === 0);
+  (logs) => logs.length === 0);
 
 
   await runTestcase(
@@ -332,11 +366,11 @@ g.test('expectations,single_case,none').fn(async t => {
   new TestQuerySingleCase('suite1', ['baz'], ['zed'], { a: 1, b: 3 }),
   zedExpectationsSkipA1B0,
   'pass',
-  logs => logs.length === 0);
+  (logs) => logs.length === 0);
 
 });
 
-g.test('expectations,multi_case').fn(async t => {
+g.test('expectations,multi_case').fn(async (t) => {
   const log = new Logger({ overrideDebugMode: true });
   const zedCases = await t.load('suite1:baz:zed:*');
   // Multi-case, not all cases covered.
@@ -355,7 +389,7 @@ g.test('expectations,multi_case').fn(async t => {
   new TestQuerySingleCase('suite1', ['baz'], ['zed'], { a: 1, b: 2 }),
   zedExpectationsSkipB3,
   'pass',
-  logs => logs.length === 0);
+  (logs) => logs.length === 0);
 
 
   await runTestcase(
@@ -366,11 +400,11 @@ g.test('expectations,multi_case').fn(async t => {
   new TestQuerySingleCase('suite1', ['baz'], ['zed'], { a: 1, b: 3 }),
   zedExpectationsSkipB3,
   'skip',
-  logs => logs.length === 1 && logs[0].startsWith('"SKIP: Skipped by expectations"'));
+  (logs) => logs.length === 1 && logs[0].startsWith('"SKIP: Skipped by expectations"'));
 
 });
 
-g.test('expectations,multi_case_all').fn(async t => {
+g.test('expectations,multi_case_all').fn(async (t) => {
   const log = new Logger({ overrideDebugMode: true });
   const zedCases = await t.load('suite1:baz:zed:*');
   // Multi-case, all cases covered.
@@ -389,7 +423,7 @@ g.test('expectations,multi_case_all').fn(async t => {
   new TestQuerySingleCase('suite1', ['baz'], ['zed'], { a: 1, b: 2 }),
   zedExpectationsSkipA1,
   'skip',
-  logs => logs.length === 1 && logs[0].startsWith('"SKIP: Skipped by expectations"'));
+  (logs) => logs.length === 1 && logs[0].startsWith('"SKIP: Skipped by expectations"'));
 
 
   await runTestcase(
@@ -400,11 +434,11 @@ g.test('expectations,multi_case_all').fn(async t => {
   new TestQuerySingleCase('suite1', ['baz'], ['zed'], { a: 1, b: 3 }),
   zedExpectationsSkipA1,
   'skip',
-  logs => logs.length === 1 && logs[0].startsWith('"SKIP: Skipped by expectations"'));
+  (logs) => logs.length === 1 && logs[0].startsWith('"SKIP: Skipped by expectations"'));
 
 });
 
-g.test('expectations,multi_case_none').fn(async t => {
+g.test('expectations,multi_case_none').fn(async (t) => {
   const log = new Logger({ overrideDebugMode: true });
   const zedCases = await t.load('suite1:baz:zed:*');
   // Multi-case, no params, all cases covered.
@@ -423,7 +457,7 @@ g.test('expectations,multi_case_none').fn(async t => {
   new TestQuerySingleCase('suite1', ['baz'], ['zed'], { a: 1, b: 2 }),
   zedExpectationsSkipZed,
   'skip',
-  logs => logs.length === 1 && logs[0].startsWith('"SKIP: Skipped by expectations"'));
+  (logs) => logs.length === 1 && logs[0].startsWith('"SKIP: Skipped by expectations"'));
 
 
   await runTestcase(
@@ -434,11 +468,11 @@ g.test('expectations,multi_case_none').fn(async t => {
   new TestQuerySingleCase('suite1', ['baz'], ['zed'], { a: 1, b: 3 }),
   zedExpectationsSkipZed,
   'skip',
-  logs => logs.length === 1 && logs[0].startsWith('"SKIP: Skipped by expectations"'));
+  (logs) => logs.length === 1 && logs[0].startsWith('"SKIP: Skipped by expectations"'));
 
 });
 
-g.test('expectations,multi_test').fn(async t => {
+g.test('expectations,multi_test').fn(async (t) => {
   const log = new Logger({ overrideDebugMode: true });
   const suite1Cases = await t.load('suite1:*');
 
@@ -458,7 +492,7 @@ g.test('expectations,multi_test').fn(async t => {
   new TestQuerySingleCase('suite1', ['baz'], ['wye'], {}),
   expectationsSkipAllInBaz,
   'skip',
-  logs => logs.length === 1 && logs[0].startsWith('"SKIP: Skipped by expectations"'));
+  (logs) => logs.length === 1 && logs[0].startsWith('"SKIP: Skipped by expectations"'));
 
 
   await runTestcase(
@@ -469,11 +503,11 @@ g.test('expectations,multi_test').fn(async t => {
   new TestQuerySingleCase('suite1', ['baz'], ['zed'], { a: 1, b: 2 }),
   expectationsSkipAllInBaz,
   'skip',
-  logs => logs.length === 1 && logs[0].startsWith('"SKIP: Skipped by expectations"'));
+  (logs) => logs.length === 1 && logs[0].startsWith('"SKIP: Skipped by expectations"'));
 
 });
 
-g.test('expectations,multi_test,none').fn(async t => {
+g.test('expectations,multi_test,none').fn(async (t) => {
   const log = new Logger({ overrideDebugMode: true });
   const suite1Cases = await t.load('suite1:*');
 
@@ -493,7 +527,7 @@ g.test('expectations,multi_test,none').fn(async t => {
   new TestQuerySingleCase('suite1', ['baz'], ['wye'], {}),
   expectationsSkipAllInFoo,
   'pass',
-  logs => logs.length === 0);
+  (logs) => logs.length === 0);
 
 
   await runTestcase(
@@ -504,11 +538,11 @@ g.test('expectations,multi_test,none').fn(async t => {
   new TestQuerySingleCase('suite1', ['baz'], ['zed'], { a: 1, b: 2 }),
   expectationsSkipAllInFoo,
   'pass',
-  logs => logs.length === 0);
+  (logs) => logs.length === 0);
 
 });
 
-g.test('expectations,multi_file').fn(async t => {
+g.test('expectations,multi_file').fn(async (t) => {
   const log = new Logger({ overrideDebugMode: true });
   const suite1Cases = await t.load('suite1:*');
 
@@ -528,7 +562,7 @@ g.test('expectations,multi_file').fn(async t => {
   new TestQuerySingleCase('suite1', ['foo'], ['hello'], {}),
   expectationsSkipAll,
   'skip',
-  logs => logs.length === 1 && logs[0].startsWith('"SKIP: Skipped by expectations"'));
+  (logs) => logs.length === 1 && logs[0].startsWith('"SKIP: Skipped by expectations"'));
 
 
   await runTestcase(
@@ -539,11 +573,11 @@ g.test('expectations,multi_file').fn(async t => {
   new TestQuerySingleCase('suite1', ['bar', 'buzz', 'buzz'], ['zap'], {}),
   expectationsSkipAll,
   'skip',
-  logs => logs.length === 1 && logs[0].startsWith('"SKIP: Skipped by expectations"'));
+  (logs) => logs.length === 1 && logs[0].startsWith('"SKIP: Skipped by expectations"'));
 
 });
 
-g.test('expectations,catches_failure').fn(async t => {
+g.test('expectations,catches_failure').fn(async (t) => {
   const log = new Logger({ overrideDebugMode: true });
   const suite2Cases = await t.load('suite2:*');
 
@@ -563,7 +597,7 @@ g.test('expectations,catches_failure').fn(async t => {
   new TestQuerySingleCase('suite2', ['foof'], ['blah'], {}),
   expectedFailures,
   'pass',
-  logs => objectEquals(logs, ['"DEBUG: OK"']));
+  (logs) => objectEquals(logs, ['"DEBUG: OK"']));
 
 
   // Status is passed, but failure is logged.
@@ -575,11 +609,11 @@ g.test('expectations,catches_failure').fn(async t => {
   new TestQuerySingleCase('suite2', ['foof'], ['bluh', 'a'], {}),
   expectedFailures,
   'pass',
-  logs => logs.length === 1 && logs[0].startsWith('"EXPECTATION FAILED: goodbye\\n'));
+  (logs) => logs.length === 1 && logs[0].startsWith('"EXPECTATION FAILED: goodbye\\n'));
 
 });
 
-g.test('expectations,skip_dominates_failure').fn(async t => {
+g.test('expectations,skip_dominates_failure').fn(async (t) => {
   const log = new Logger({ overrideDebugMode: true });
   const suite2Cases = await t.load('suite2:*');
 
@@ -602,11 +636,11 @@ g.test('expectations,skip_dominates_failure').fn(async t => {
   new TestQuerySingleCase('suite2', ['foof'], ['bluh', 'a'], {}),
   expectedFailures,
   'skip',
-  logs => logs.length === 1 && logs[0].startsWith('"SKIP: Skipped by expectations"'));
+  (logs) => logs.length === 1 && logs[0].startsWith('"SKIP: Skipped by expectations"'));
 
 });
 
-g.test('expectations,skip_inside_failure').fn(async t => {
+g.test('expectations,skip_inside_failure').fn(async (t) => {
   const log = new Logger({ overrideDebugMode: true });
   const suite2Cases = await t.load('suite2:*');
 
@@ -629,7 +663,7 @@ g.test('expectations,skip_inside_failure').fn(async t => {
   new TestQuerySingleCase('suite2', ['foof'], ['blah'], {}),
   expectedFailures,
   'skip',
-  logs => logs.length === 1 && logs[0].startsWith('"SKIP: Skipped by expectations"'));
+  (logs) => logs.length === 1 && logs[0].startsWith('"SKIP: Skipped by expectations"'));
 
 
   await runTestcase(
@@ -640,7 +674,7 @@ g.test('expectations,skip_inside_failure').fn(async t => {
   new TestQuerySingleCase('suite2', ['foof'], ['bluh', 'a'], {}),
   expectedFailures,
   'pass',
-  logs => logs.length === 1 && logs[0].startsWith('"EXPECTATION FAILED: goodbye\\n'));
+  (logs) => logs.length === 1 && logs[0].startsWith('"EXPECTATION FAILED: goodbye\\n'));
 
 });
 
@@ -652,10 +686,7 @@ expectedResult,
 includeEmptySubtrees = false)
 {
   t.debug(`expandThrough=${alwaysExpandThroughLevel} expectations=${expectations}`);
-  const treePromise = LoadingTest.loader.loadTree(
-  new TestQueryMultiFile('suite1', []),
-  expectations);
-
+  const treePromise = t.loader.loadTree(new TestQueryMultiFile('suite1', []), expectations);
   if (expectedResult === 'throws') {
     t.shouldReject('Error', treePromise, 'loadTree should have thrown Error');
     return;
@@ -679,12 +710,12 @@ ${tree.toString()}`);
   }
 }
 
-g.test('print').fn(async () => {
-  const tree = await LoadingTest.loader.loadTree(new TestQueryMultiFile('suite1', []));
+g.test('print').fn(async (t) => {
+  const tree = await t.loader.loadTree(new TestQueryMultiFile('suite1', []));
   tree.toString();
 });
 
-g.test('iterateCollapsed').fn(async t => {
+g.test('iterateCollapsed').fn(async (t) => {
   await testIterateCollapsed(
   t,
   1,

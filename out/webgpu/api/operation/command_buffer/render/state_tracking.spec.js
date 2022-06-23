@@ -11,18 +11,19 @@ import { GPUTest } from '../../../../gpu_test.js';
 class VertexAndIndexStateTrackingTest extends GPUTest {
   GetRenderPipelineForTest(arrayStride) {
     return this.device.createRenderPipeline({
+      layout: 'auto',
       vertex: {
         module: this.device.createShaderModule({
           code: `
         struct Inputs {
-          @location(0) vertexPosition : f32;
-          @location(1) vertexColor : vec4<f32>;
+          @location(0) vertexPosition : f32,
+          @location(1) vertexColor : vec4<f32>,
         };
         struct Outputs {
-          @builtin(position) position : vec4<f32>;
-          @location(0) color : vec4<f32>;
+          @builtin(position) position : vec4<f32>,
+          @location(0) color : vec4<f32>,
         };
-        @stage(vertex)
+        @vertex
         fn main(input : Inputs)-> Outputs {
           var outputs : Outputs;
           outputs.position =
@@ -54,9 +55,9 @@ class VertexAndIndexStateTrackingTest extends GPUTest {
         module: this.device.createShaderModule({
           code: `
         struct Input {
-          @location(0) color : vec4<f32>;
+          @location(0) color : vec4<f32>
         };
-        @stage(fragment)
+        @fragment
         fn main(input : Input) -> @location(0) vec4<f32> {
           return input.color;
         }` }),
@@ -82,7 +83,7 @@ desc(
   orders still keeps the correctness of each draw call.
 `).
 
-fn(async t => {
+fn(async (t) => {
   // Initialize the index buffer with 5 uint16 indices (0, 1, 2, 3, 4).
   const indexBuffer = t.makeBufferWithContents(
   new Uint16Array([0, 1, 2, 3, 4]),
@@ -139,7 +140,8 @@ fn(async t => {
     colorAttachments: [
     {
       view: outputTexture.createView(),
-      loadValue: [0, 0, 0, 1],
+      clearValue: [0, 0, 0, 1],
+      loadOp: 'clear',
       storeOp: 'store' }] });
 
 
@@ -165,7 +167,7 @@ fn(async t => {
   renderPass.setIndexBuffer(indexBuffer, 'uint16', 6, 4);
   renderPass.drawIndexed(2);
 
-  renderPass.endPass();
+  renderPass.end();
   t.queue.submit([encoder.finish()]);
 
   for (let i = 0; i < kPositions.length - 1; ++i) {
@@ -188,7 +190,7 @@ desc(
     in all 4 output pixels, and check they were drawn correctly.
 `).
 
-fn(async t => {
+fn(async (t) => {
   const kPositions = [-0.875, -0.625, -0.375, -0.125, 0.125, 0.375, 0.625, 0.875];
   const kColors = [
   new Uint8Array([255, 0, 0, 255]),
@@ -233,7 +235,8 @@ fn(async t => {
     colorAttachments: [
     {
       view: outputTexture.createView(),
-      loadValue: [0, 0, 0, 1],
+      clearValue: [0, 0, 0, 1],
+      loadOp: 'clear',
       storeOp: 'store' }] });
 
 
@@ -269,7 +272,7 @@ fn(async t => {
 
   renderPass.draw(4);
 
-  renderPass.endPass();
+  renderPass.end();
   t.queue.submit([encoder.finish()]);
 
   for (let i = 0; i < kPositions.length; ++i) {
@@ -290,7 +293,7 @@ desc(
   pipeline.)
 `).
 
-fn(async t => {
+fn(async (t) => {
   const kPositions = [-0.8, -0.4, 0.0, 0.4, 0.8, 0.9];
   const kColors = [
   new Uint8Array([255, 0, 0, 255]),
@@ -335,7 +338,8 @@ fn(async t => {
     colorAttachments: [
     {
       view: outputTexture.createView(),
-      loadValue: [0, 0, 0, 1],
+      clearValue: [0, 0, 0, 1],
+      loadOp: 'clear',
       storeOp: 'store' }] });
 
 
@@ -354,7 +358,7 @@ fn(async t => {
   renderPass.setPipeline(renderPipeline1);
   renderPass.draw(2);
 
-  renderPass.endPass();
+  renderPass.end();
 
   t.queue.submit([encoder.finish()]);
 
@@ -379,7 +383,7 @@ desc(
     two draw calls work correctly.
   `).
 
-fn(async t => {
+fn(async (t) => {
   const kPositions = new Float32Array([-0.75, -0.25]);
   const kColors = new Uint8Array([255, 0, 0, 255, 0, 255, 0, 255]);
 
@@ -392,9 +396,9 @@ fn(async t => {
     module: t.device.createShaderModule({
       code: `
       struct Input {
-        @location(0) color : vec4<f32>;
+        @location(0) color : vec4<f32>
       };
-      @stage(fragment)
+      @fragment
       fn main(input : Input) -> @location(0) vec4<f32> {
         return input.color;
       }` }),
@@ -405,18 +409,19 @@ fn(async t => {
 
   // Create renderPipeline1 that uses both positionBuffer and colorBuffer.
   const renderPipeline1 = t.device.createRenderPipeline({
+    layout: 'auto',
     vertex: {
       module: t.device.createShaderModule({
         code: `
         struct Inputs {
-          @location(0) vertexColor : vec4<f32>;
-          @location(1) vertexPosition : f32;
+          @location(0) vertexColor : vec4<f32>,
+          @location(1) vertexPosition : f32,
         };
         struct Outputs {
-          @builtin(position) position : vec4<f32>;
-          @location(0) color : vec4<f32>;
+          @builtin(position) position : vec4<f32>,
+          @location(0) color : vec4<f32>,
         };
-        @stage(vertex)
+        @vertex
         fn main(input : Inputs)-> Outputs {
           var outputs : Outputs;
           outputs.position =
@@ -456,18 +461,19 @@ fn(async t => {
 
 
   const renderPipeline2 = t.device.createRenderPipeline({
+    layout: 'auto',
     vertex: {
       module: t.device.createShaderModule({
         code: `
         struct Inputs {
-          @builtin(vertex_index) vertexIndex : u32;
-          @location(0) vertexColor : vec4<f32>;
+          @builtin(vertex_index) vertexIndex : u32,
+          @location(0) vertexColor : vec4<f32>,
         };
         struct Outputs {
-          @builtin(position) position : vec4<f32>;
-          @location(0) color : vec4<f32>;
+          @builtin(position) position : vec4<f32>,
+          @location(0) color : vec4<f32>,
         };
-        @stage(vertex)
+        @vertex
         fn main(input : Inputs)-> Outputs {
           var kPositions = array<f32, 2> (0.25, 0.75);
           var outputs : Outputs;
@@ -509,7 +515,8 @@ fn(async t => {
     colorAttachments: [
     {
       view: outputTexture.createView(),
-      loadValue: [0, 0, 0, 1],
+      clearValue: [0, 0, 0, 1],
+      loadOp: 'clear',
       storeOp: 'store' }] });
 
 
@@ -523,7 +530,7 @@ fn(async t => {
   renderPass.setPipeline(renderPipeline2);
   renderPass.draw(2);
 
-  renderPass.endPass();
+  renderPass.end();
 
   t.queue.submit([encoder.finish()]);
 
@@ -550,7 +557,7 @@ desc(
   Test that setting / not setting the index buffer does not impact a non-indexed draw.
   `).
 
-fn(async t => {
+fn(async (t) => {
   const kPositions = [-0.75, -0.25, 0.25, 0.75];
   const kColors = [
   new Uint8Array([255, 0, 0, 255]),
@@ -593,7 +600,8 @@ fn(async t => {
     colorAttachments: [
     {
       view: outputTexture.createView(),
-      loadValue: [0, 0, 0, 1],
+      clearValue: [0, 0, 0, 1],
+      loadOp: 'clear',
       storeOp: 'store' }] });
 
 
@@ -608,7 +616,7 @@ fn(async t => {
   // The second draw call is a non-indexed one (the first and second color are involved)
   renderPass.draw(2);
 
-  renderPass.endPass();
+  renderPass.end();
 
   t.queue.submit([encoder.finish()]);
 

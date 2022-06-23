@@ -21,7 +21,9 @@ export function parseQuery(s: string): TestQuery {
   try {
     return parseQueryImpl(s);
   } catch (ex) {
-    ex.message += '\n  on: ' + s;
+    if (ex instanceof Error) {
+      ex.message += '\n  on: ' + s;
+    }
     throw ex;
   }
 }
@@ -93,7 +95,7 @@ function parseQueryImpl(s: string): TestQuery {
   const params: TestParamsRW = {};
   for (const paramPart of paramsParts) {
     const [k, v] = parseSingleParam(paramPart);
-    assert(validQueryPart.test(k), 'param key names must match ' + validQueryPart);
+    assert(validQueryPart.test(k), `param key names must match ${validQueryPart}`);
     params[k] = v;
   }
   if (paramsHasWildcard) {

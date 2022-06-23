@@ -10,6 +10,9 @@ import {
   kTextureFormatInfo,
   kTextureFormats,
   kTextureViewDimensions,
+  kFeaturesForFormats,
+  viewCompatible,
+  filterFormatsByFeature,
 } from '../../capability_info.js';
 import { kResourceStates } from '../../gpu_test.js';
 import {
@@ -27,27 +30,46 @@ const kLevels = 6;
 
 g.test('format')
   .desc(
-    `Views must have the same format as the base texture, for all {texture format}x{view format}.`
+    `Views must have the view format compatible with the base texture, for all {texture format}x{view format}.`
   )
   .params(u =>
     u
-      .combine('textureFormat', kTextureFormats)
+      .combine('textureFormatFeature', kFeaturesForFormats)
+      .combine('viewFormatFeature', kFeaturesForFormats)
       .beginSubcases()
-      // If undefined, should default to textureFormat.
-      .combine('viewFormat', [undefined, ...kTextureFormats])
+      .expand('textureFormat', ({ textureFormatFeature }) =>
+        filterFormatsByFeature(textureFormatFeature, kTextureFormats)
+      )
+      .expand('viewFormat', ({ viewFormatFeature }) =>
+        filterFormatsByFeature(viewFormatFeature, [undefined, ...kTextureFormats])
+      )
+      .combine('useViewFormatList', [false, true])
   )
+  .beforeAllSubcases(t => {
+    const { textureFormatFeature, viewFormatFeature } = t.params;
+    t.selectDeviceOrSkipTestCase([textureFormatFeature, viewFormatFeature]);
+  })
   .fn(async t => {
-    const { textureFormat, viewFormat } = t.params;
-    await t.selectDeviceForTextureFormatOrSkipTestCase([textureFormat, viewFormat]);
+    const { textureFormat, viewFormat, useViewFormatList } = t.params;
     const { blockWidth, blockHeight } = kTextureFormatInfo[textureFormat];
+
+    const compatible = viewFormat === undefined || viewCompatible(textureFormat, viewFormat);
 
     const texture = t.device.createTexture({
       format: textureFormat,
       size: [blockWidth, blockHeight],
       usage: GPUTextureUsage.TEXTURE_BINDING,
+
+      // This is a test of createView, not createTexture. Don't pass viewFormats here that
+      // are not compatible, as that is tested in createTexture.spec.ts.
+      viewFormats:
+        useViewFormatList && compatible && viewFormat !== undefined ? [viewFormat] : undefined,
     });
 
-    const success = viewFormat === undefined || viewFormat === textureFormat;
+    // Successful if there is no view format, no reinterpretation was required, or the formats are compatible
+    // and is was specified in the viewFormats list.
+    const success =
+      viewFormat === undefined || viewFormat === textureFormat || (compatible && useViewFormatList);
     t.expectValidationError(() => {
       texture.createView({ format: viewFormat });
     }, !success);
@@ -99,9 +121,12 @@ g.test('aspect')
       .combine('format', kTextureFormats)
       .combine('aspect', kTextureAspects)
   )
+  .beforeAllSubcases(t => {
+    const { format } = t.params;
+    t.selectDeviceForTextureFormatOrSkipTestCase(format);
+  })
   .fn(async t => {
     const { format, aspect } = t.params;
-    await t.selectDeviceForTextureFormatOrSkipTestCase(format);
     const info = kTextureFormatInfo[format];
 
     const texture = t.device.createTexture({
@@ -259,7 +284,7 @@ g.test('mip_levels')
     const success = validateCreateViewLayersLevels(textureDescriptor, viewDescriptor);
 
     const texture = t.device.createTexture(textureDescriptor);
-    t.debug(mipLevelCount + ' ' + success);
+    t.debug(`${mipLevelCount} ${success}`);
     t.expectValidationError(() => {
       texture.createView(viewDescriptor);
     }, !success);

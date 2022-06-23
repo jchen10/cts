@@ -1,6 +1,6 @@
 /**
  * AUTO-GENERATED - DO NOT EDIT. Source: https://github.com/gpuweb/cts
- **/ export const description = `Test culling and rasterizaion state.
+ **/ export const description = `Test culling and rasterization state.
 
 Test coverage:
 Test all culling combinations of GPUFrontFace and GPUCullMode show the correct output.
@@ -20,6 +20,7 @@ Use 2 triangles with different winding orders:
   - Some primitive topologies (triangle-list, TODO: triangle-strip)
 `;
 import { makeTestGroup } from '../../../../common/framework/test_group.js';
+import { kTextureFormatInfo } from '../../../capability_info.js';
 import { GPUTest } from '../../../gpu_test.js';
 
 function faceIsCulled(face, frontFace, cullMode) {
@@ -71,33 +72,41 @@ TODO: check the contents of the depth and stencil outputs [2]
       usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
     });
 
-    const depthTexture = t.params.depthStencilFormat
-      ? t.device.createTexture({
-          size: { width: size, height: size, depthOrArrayLayers: 1 },
-          format: t.params.depthStencilFormat,
-          usage: GPUTextureUsage.RENDER_ATTACHMENT,
-        })
-      : null;
+    let depthTexture = undefined;
+    let depthStencilAttachment = undefined;
+    if (t.params.depthStencilFormat) {
+      depthTexture = t.device.createTexture({
+        size: { width: size, height: size, depthOrArrayLayers: 1 },
+        format: t.params.depthStencilFormat,
+        usage: GPUTextureUsage.RENDER_ATTACHMENT,
+      });
+
+      depthStencilAttachment = {
+        view: depthTexture.createView(),
+        depthClearValue: 1.0,
+        depthLoadOp: 'clear',
+        depthStoreOp: 'store',
+      };
+
+      if (t.params.depthStencilFormat && kTextureFormatInfo[t.params.depthStencilFormat].stencil) {
+        depthStencilAttachment.stencilClearValue = 0;
+        depthStencilAttachment.stencilLoadOp = 'clear';
+        depthStencilAttachment.stencilStoreOp = 'store';
+      }
+    }
 
     const encoder = t.device.createCommandEncoder();
     const pass = encoder.beginRenderPass({
       colorAttachments: [
         {
           view: texture.createView(),
-          loadValue: { r: 0.0, g: 0.0, b: 1.0, a: 1.0 },
+          clearValue: { r: 0.0, g: 0.0, b: 1.0, a: 1.0 },
+          loadOp: 'clear',
           storeOp: 'store',
         },
       ],
 
-      depthStencilAttachment: depthTexture
-        ? {
-            view: depthTexture.createView(),
-            depthLoadValue: 1.0,
-            depthStoreOp: 'store',
-            stencilLoadValue: 0,
-            stencilStoreOp: 'store',
-          }
-        : undefined,
+      depthStencilAttachment,
     });
 
     // Draw two triangles with different winding orders:
@@ -105,10 +114,11 @@ TODO: check the contents of the depth and stencil outputs [2]
     // 2. The bottom-right one is clockwise (CW)
     pass.setPipeline(
       t.device.createRenderPipeline({
+        layout: 'auto',
         vertex: {
           module: t.device.createShaderModule({
             code: `
-              @stage(vertex) fn main(
+              @vertex fn main(
                 @builtin(vertex_index) VertexIndex : u32
                 ) -> @builtin(position) vec4<f32> {
                 var pos : array<vec2<f32>, 6> = array<vec2<f32>, 6>(
@@ -128,7 +138,7 @@ TODO: check the contents of the depth and stencil outputs [2]
         fragment: {
           module: t.device.createShaderModule({
             code: `
-              @stage(fragment) fn main(
+              @fragment fn main(
                 @builtin(front_facing) FrontFacing : bool
                 ) -> @location(0) vec4<f32> {
                 var color : vec4<f32>;
@@ -156,7 +166,7 @@ TODO: check the contents of the depth and stencil outputs [2]
     );
 
     pass.draw(6, 1, 0, 0);
-    pass.endPass();
+    pass.end();
 
     t.device.queue.submit([encoder.finish()]);
 

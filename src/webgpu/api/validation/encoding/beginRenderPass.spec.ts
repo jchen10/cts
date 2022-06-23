@@ -1,6 +1,8 @@
 export const description = `
 Note: render pass 'occlusionQuerySet' validation is tested in queries/general.spec.ts
 
+TODO: Check that depth-stencil attachment views must encompass all aspects.
+
 TODO: check for duplication (render_pass/, etc.), plan, and implement.
 Note possibly a lot of this should be operation tests instead.
 Notes:
@@ -27,7 +29,7 @@ export const g = makeTestGroup(ValidationTest);
 g.test('color_attachments,device_mismatch')
   .desc(
     `
-    Tests beginRenderPass cannot be called with color attachments whose texure view or resolve target is created from another device
+    Tests beginRenderPass cannot be called with color attachments whose texture view or resolve target is created from another device
     The 'view' and 'resolveTarget' are:
     - created from same device in ColorAttachment0 and ColorAttachment1
     - created from different device in ColorAttachment0 and ColorAttachment1
@@ -60,14 +62,12 @@ g.test('color_attachments,device_mismatch')
       target1Mismatched: true,
     },
   ])
+  .beforeAllSubcases(t => {
+    t.selectMismatchedDeviceOrSkipTestCase(undefined);
+  })
   .fn(async t => {
     const { view0Mismatched, target0Mismatched, view1Mismatched, target1Mismatched } = t.params;
-
     const mismatched = view0Mismatched || target0Mismatched || view1Mismatched || target1Mismatched;
-
-    if (mismatched) {
-      await t.selectMismatchedDeviceOrSkipTestCase(undefined);
-    }
 
     const view0Texture = view0Mismatched
       ? t.getDeviceMismatchedRenderTexture(4)
@@ -87,34 +87,35 @@ g.test('color_attachments,device_mismatch')
       colorAttachments: [
         {
           view: view0Texture.createView(),
-          loadValue: { r: 1.0, g: 0.0, b: 0.0, a: 1.0 },
+          clearValue: { r: 1.0, g: 0.0, b: 0.0, a: 1.0 },
+          loadOp: 'clear',
           storeOp: 'store',
           resolveTarget: target0Texture.createView(),
         },
         {
           view: view1Texture.createView(),
-          loadValue: { r: 1.0, g: 0.0, b: 0.0, a: 1.0 },
+          clearValue: { r: 1.0, g: 0.0, b: 0.0, a: 1.0 },
+          loadOp: 'clear',
           storeOp: 'store',
           resolveTarget: target1Texture.createView(),
         },
       ],
     });
-    pass.endPass();
+    pass.end();
 
     encoder.validateFinish(!mismatched);
   });
 
 g.test('depth_stencil_attachment,device_mismatch')
   .desc(
-    'Tests beginRenderPass cannot be called with a depth stencil attachment whose texure view is created from another device'
+    'Tests beginRenderPass cannot be called with a depth stencil attachment whose texture view is created from another device'
   )
   .paramsSubcasesOnly(u => u.combine('mismatched', [true, false]))
+  .beforeAllSubcases(t => {
+    t.selectMismatchedDeviceOrSkipTestCase(undefined);
+  })
   .fn(async t => {
     const { mismatched } = t.params;
-
-    if (mismatched) {
-      await t.selectMismatchedDeviceOrSkipTestCase(undefined);
-    }
 
     const descriptor: GPUTextureDescriptor = {
       size: { width: 4, height: 4, depthOrArrayLayers: 1 },
@@ -131,13 +132,15 @@ g.test('depth_stencil_attachment,device_mismatch')
       colorAttachments: [],
       depthStencilAttachment: {
         view: depthStencilTexture.createView(),
-        depthLoadValue: 0,
+        depthClearValue: 0,
+        depthLoadOp: 'clear',
         depthStoreOp: 'store',
-        stencilLoadValue: 0,
+        stencilClearValue: 0,
+        stencilLoadOp: 'clear',
         stencilStoreOp: 'store',
       },
     });
-    pass.endPass();
+    pass.end();
 
     encoder.validateFinish(!mismatched);
   });
@@ -147,21 +150,18 @@ g.test('occlusion_query_set,device_mismatch')
     'Tests beginRenderPass cannot be called with an occlusion query set created from another device'
   )
   .paramsSubcasesOnly(u => u.combine('mismatched', [true, false]))
+  .beforeAllSubcases(t => {
+    t.selectMismatchedDeviceOrSkipTestCase(undefined);
+  })
   .fn(async t => {
     const { mismatched } = t.params;
+    const device = mismatched ? t.mismatchedDevice : t.device;
 
-    if (mismatched) {
-      await t.selectMismatchedDeviceOrSkipTestCase(undefined);
-    }
-
-    const descriptor: GPUQuerySetDescriptor = {
+    const occlusionQuerySet = device.createQuerySet({
       type: 'occlusion',
       count: 1,
-    };
-
-    const occlusionQuerySet = mismatched
-      ? t.mismatchedDevice.createQuerySet(descriptor)
-      : t.device.createQuerySet(descriptor);
+    });
+    t.trackForCleanup(occlusionQuerySet);
 
     const encoder = t.createEncoder('render pass', { occlusionQuerySet });
     encoder.validateFinish(!mismatched);

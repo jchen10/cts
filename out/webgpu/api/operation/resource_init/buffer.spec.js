@@ -50,6 +50,7 @@ class F extends GPUTest {
   boundBufferSize)
   {
     const computePipeline = this.device.createComputePipeline({
+      layout: 'auto',
       compute: {
         module: computeShaderModule,
         entryPoint: 'main' } });
@@ -82,8 +83,8 @@ class F extends GPUTest {
     const computePass = encoder.beginComputePass();
     computePass.setBindGroup(0, bindGroup);
     computePass.setPipeline(computePipeline);
-    computePass.dispatch(1);
-    computePass.endPass();
+    computePass.dispatchWorkgroups(1);
+    computePass.end();
     this.queue.submit([encoder.finish()]);
 
     this.CheckBufferAndOutputTexture(buffer, boundBufferSize + bufferOffset, outputTexture);
@@ -94,6 +95,7 @@ class F extends GPUTest {
   testVertexBuffer)
   {
     const renderPipelineDescriptor = {
+      layout: 'auto',
       vertex: {
         module: vertexShaderModule,
         entryPoint: 'main' },
@@ -101,7 +103,7 @@ class F extends GPUTest {
       fragment: {
         module: this.device.createShaderModule({
           code: `
-        @stage(fragment)
+        @fragment
         fn main(@location(0) i_color : vec4<f32>) -> @location(0) vec4<f32> {
             return i_color;
         }` }),
@@ -134,12 +136,13 @@ class F extends GPUTest {
       colorAttachments: [
       {
         view: texture.createView(),
-        loadValue: color,
+        clearValue: color,
+        loadOp: 'clear',
         storeOp: 'store' }] });
 
 
 
-    renderPass.endPass();
+    renderPass.end();
   }
 
   CheckBufferAndOutputTexture(
@@ -166,8 +169,8 @@ desc(
 `Verify when we upload data to a part of a buffer with writeBuffer() just after the creation of
 the buffer, the remaining part of that buffer will be initialized to 0.`).
 
-paramsSubcasesOnly(u => u.combine('offset', [0, 8, -12])).
-fn(async t => {
+paramsSubcasesOnly((u) => u.combine('offset', [0, 8, -12])).
+fn(async (t) => {
   const { offset } = t.params;
   const bufferSize = 32;
   const appliedOffset = offset >= 0 ? offset : bufferSize + offset;
@@ -194,8 +197,8 @@ desc(
 creating the GPUBuffer, the contents of both the typed array buffer and the GPUBuffer itself
 have already been initialized to 0.`).
 
-params(u => u.combine('mapMode', kMapModeOptions)).
-fn(async t => {
+params((u) => u.combine('mapMode', kMapModeOptions)).
+fn(async (t) => {
   const { mapMode } = t.params;
 
   const bufferSize = 32;
@@ -222,8 +225,8 @@ desc(
 creation of the GPUBuffer, the contents of both the typed array buffer and the GPUBuffer have
 already been initialized to 0.`).
 
-params(u => u.combine('mapMode', kMapModeOptions).beginSubcases().combine('offset', [0, 8, -16])).
-fn(async t => {
+params((u) => u.combine('mapMode', kMapModeOptions).beginSubcases().combine('offset', [0, 8, -16])).
+fn(async (t) => {
   const { mapMode, offset } = t.params;
   const bufferSize = 32;
   const appliedOffset = offset >= 0 ? offset : bufferSize + offset;
@@ -257,8 +260,8 @@ desc(
 mappedAtCreation === true just after its creation, the contents of both the returned typed
 array buffer of getMappedRange() and the GPUBuffer itself have all been initialized to 0.`).
 
-params(u => u.combine('bufferUsage', kBufferUsagesForMappedAtCreationTests)).
-fn(async t => {
+params((u) => u.combine('bufferUsage', kBufferUsagesForMappedAtCreationTests)).
+fn(async (t) => {
   const { bufferUsage } = t.params;
 
   const bufferSize = 32;
@@ -290,7 +293,7 @@ combine('bufferUsage', kBufferUsagesForMappedAtCreationTests).
 beginSubcases().
 combine('offset', [0, 8, -16])).
 
-fn(async t => {
+fn(async (t) => {
   const { bufferUsage, offset } = t.params;
   const bufferSize = 32;
   const appliedOffset = offset >= 0 ? offset : bufferSize + offset;
@@ -322,7 +325,7 @@ desc(
 `Verify when the first usage of a GPUBuffer is being used as the source buffer of
 CopyBufferToBuffer(), the contents of the GPUBuffer have already been initialized to 0.`).
 
-fn(async t => {
+fn(async (t) => {
   const bufferSize = 32;
   const bufferUsage = GPUBufferUsage.COPY_SRC;
   const buffer = t.device.createBuffer({
@@ -340,8 +343,8 @@ desc(
 `Verify when the first usage of a GPUBuffer is being used as the source buffer of
 CopyBufferToTexture(), the contents of the GPUBuffer have already been initialized to 0.`).
 
-paramsSubcasesOnly(u => u.combine('bufferOffset', [0, 8])).
-fn(async t => {
+paramsSubcasesOnly((u) => u.combine('bufferOffset', [0, 8])).
+fn(async (t) => {
   const { bufferOffset } = t.params;
   const textureSize = [8, 8, 1];
   const dstTextureFormat = 'rgba8unorm';
@@ -385,8 +388,8 @@ desc(
 `Verify when we resolve a query set into a GPUBuffer just after creating that GPUBuffer, the
 remaining part of it will be initialized to 0.`).
 
-paramsSubcasesOnly(u => u.combine('bufferOffset', [0, 256])).
-fn(async t => {
+paramsSubcasesOnly((u) => u.combine('bufferOffset', [0, 256])).
+fn(async (t) => {
   const { bufferOffset } = t.params;
   const bufferSize = bufferOffset + 8;
   const bufferUsage = GPUBufferUsage.COPY_SRC | GPUBufferUsage.QUERY_RESOLVE;
@@ -415,12 +418,12 @@ combine('bufferOffset', [0, 8, -16]).
 combine('arrayLayerCount', [1, 3]).
 combine('copyMipLevel', [0, 2]).
 combine('rowsPerImage', [16, 20]).
-filter(t => {
+filter((t) => {
   // We don't need to test the copies that will cover the whole GPUBuffer.
   return !(t.bufferOffset === 0 && t.rowsPerImage === 16);
 })).
 
-fn(async t => {
+fn(async (t) => {
   const { bufferOffset, arrayLayerCount, copyMipLevel, rowsPerImage } = t.params;
   const srcTextureFormat = 'r8uint';
   const textureSize = [32, 16, arrayLayerCount];
@@ -457,12 +460,13 @@ fn(async t => {
           arrayLayerCount: 1,
           baseMipLevel: copyMipLevel }),
 
-        loadValue: { r: layer + 1, g: 0, b: 0, a: 0 },
+        clearValue: { r: layer + 1, g: 0, b: 0, a: 0 },
+        loadOp: 'clear',
         storeOp: 'store' }] });
 
 
 
-    renderPass.endPass();
+    renderPass.end();
   }
 
   // Do texture-to-buffer copy
@@ -474,7 +478,7 @@ fn(async t => {
 
   t.queue.submit([encoder.finish()]);
 
-  // Check if the contents of the destination bufer are what we expect.
+  // Check if the contents of the destination buffer are what we expect.
   const expectedData = new Uint8Array(dstBufferSize);
   for (let layer = 0; layer < arrayLayerCount; ++layer) {
     for (let y = 0; y < layout.mipSize[1]; ++y) {
@@ -492,8 +496,8 @@ desc(
 `Verify when we use a GPUBuffer as a uniform buffer just after the creation of that GPUBuffer,
     all the contents in that GPUBuffer have been initialized to 0.`).
 
-paramsSubcasesOnly(u => u.combine('bufferOffset', [0, 256])).
-fn(async t => {
+paramsSubcasesOnly((u) => u.combine('bufferOffset', [0, 256])).
+fn(async (t) => {
   const { bufferOffset } = t.params;
 
   const boundBufferSize = 16;
@@ -505,12 +509,12 @@ fn(async t => {
   const computeShaderModule = t.device.createShaderModule({
     code: `
   struct UBO {
-      value : vec4<u32>;
+    value : vec4<u32>
   };
   @group(0) @binding(0) var<uniform> ubo : UBO;
   @group(0) @binding(1) var outImage : texture_storage_2d<rgba8unorm, write>;
 
-  @stage(compute) @workgroup_size(1) fn main() {
+  @compute @workgroup_size(1) fn main() {
       if (all(ubo.value == vec4<u32>(0u, 0u, 0u, 0u))) {
           textureStore(outImage, vec2<i32>(0, 0), vec4<f32>(0.0, 1.0, 0.0, 1.0));
       } else {
@@ -528,8 +532,8 @@ desc(
 `Verify when we use a GPUBuffer as a read-only storage buffer just after the creation of that
     GPUBuffer, all the contents in that GPUBuffer have been initialized to 0.`).
 
-paramsSubcasesOnly(u => u.combine('bufferOffset', [0, 256])).
-fn(async t => {
+paramsSubcasesOnly((u) => u.combine('bufferOffset', [0, 256])).
+fn(async (t) => {
   const { bufferOffset } = t.params;
   const boundBufferSize = 16;
   const buffer = t.device.createBuffer({
@@ -540,12 +544,12 @@ fn(async t => {
   const computeShaderModule = t.device.createShaderModule({
     code: `
     struct SSBO {
-        value : vec4<u32>;
+      value : vec4<u32>
     };
     @group(0) @binding(0) var<storage, read> ssbo : SSBO;
     @group(0) @binding(1) var outImage : texture_storage_2d<rgba8unorm, write>;
 
-    @stage(compute) @workgroup_size(1) fn main() {
+    @compute @workgroup_size(1) fn main() {
         if (all(ssbo.value == vec4<u32>(0u, 0u, 0u, 0u))) {
             textureStore(outImage, vec2<i32>(0, 0), vec4<f32>(0.0, 1.0, 0.0, 1.0));
         } else {
@@ -563,8 +567,8 @@ desc(
 `Verify when we use a GPUBuffer as a storage buffer just after the creation of that
     GPUBuffer, all the contents in that GPUBuffer have been initialized to 0.`).
 
-paramsSubcasesOnly(u => u.combine('bufferOffset', [0, 256])).
-fn(async t => {
+paramsSubcasesOnly((u) => u.combine('bufferOffset', [0, 256])).
+fn(async (t) => {
   const { bufferOffset } = t.params;
   const boundBufferSize = 16;
   const buffer = t.device.createBuffer({
@@ -575,12 +579,12 @@ fn(async t => {
   const computeShaderModule = t.device.createShaderModule({
     code: `
     struct SSBO {
-        value : vec4<u32>;
+      value : vec4<u32>
     };
     @group(0) @binding(0) var<storage, read_write> ssbo : SSBO;
     @group(0) @binding(1) var outImage : texture_storage_2d<rgba8unorm, write>;
 
-    @stage(compute) @workgroup_size(1) fn main() {
+    @compute @workgroup_size(1) fn main() {
         if (all(ssbo.value == vec4<u32>(0u, 0u, 0u, 0u))) {
             textureStore(outImage, vec2<i32>(0, 0), vec4<f32>(0.0, 1.0, 0.0, 1.0));
         } else {
@@ -598,19 +602,19 @@ desc(
 `Verify when we use a GPUBuffer as a vertex buffer just after the creation of that
   GPUBuffer, all the contents in that GPUBuffer have been initialized to 0.`).
 
-paramsSubcasesOnly(u => u.combine('bufferOffset', [0, 16])).
-fn(async t => {
+paramsSubcasesOnly((u) => u.combine('bufferOffset', [0, 16])).
+fn(async (t) => {
   const { bufferOffset } = t.params;
 
   const renderPipeline = t.CreateRenderPipelineForTest(
   t.device.createShaderModule({
     code: `
       struct VertexOut {
-        @location(0) color : vec4<f32>;
-        @builtin(position) position : vec4<f32>;
+        @location(0) color : vec4<f32>,
+        @builtin(position) position : vec4<f32>,
       };
 
-      @stage(vertex) fn main(@location(0) pos : vec4<f32>) -> VertexOut {
+      @vertex fn main(@location(0) pos : vec4<f32>) -> VertexOut {
         var output : VertexOut;
         if (all(pos == vec4<f32>(0.0, 0.0, 0.0, 0.0))) {
           output.color = vec4<f32>(0.0, 1.0, 0.0, 1.0);
@@ -641,7 +645,8 @@ fn(async t => {
     colorAttachments: [
     {
       view: outputTexture.createView(),
-      loadValue: { r: 0.0, g: 0.0, b: 0.0, a: 0.0 },
+      clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 0.0 },
+      loadOp: 'clear',
       storeOp: 'store' }] });
 
 
@@ -649,7 +654,7 @@ fn(async t => {
   renderPass.setVertexBuffer(0, vertexBuffer, bufferOffset);
   renderPass.setPipeline(renderPipeline);
   renderPass.draw(1);
-  renderPass.endPass();
+  renderPass.end();
   t.queue.submit([encoder.finish()]);
 
   t.CheckBufferAndOutputTexture(vertexBuffer, bufferSize, outputTexture);
@@ -660,19 +665,19 @@ desc(
 `Verify when we use a GPUBuffer as an index buffer just after the creation of that
 GPUBuffer, all the contents in that GPUBuffer have been initialized to 0.`).
 
-paramsSubcasesOnly(u => u.combine('bufferOffset', [0, 16])).
-fn(async t => {
+paramsSubcasesOnly((u) => u.combine('bufferOffset', [0, 16])).
+fn(async (t) => {
   const { bufferOffset } = t.params;
 
   const renderPipeline = t.CreateRenderPipelineForTest(
   t.device.createShaderModule({
     code: `
     struct VertexOut {
-      @location(0) color : vec4<f32>;
-      @builtin(position) position : vec4<f32>;
+      @location(0) color : vec4<f32>,
+      @builtin(position) position : vec4<f32>,
     };
 
-    @stage(vertex)
+    @vertex
     fn main(@builtin(vertex_index) VertexIndex : u32) -> VertexOut {
       var output : VertexOut;
       if (VertexIndex == 0u) {
@@ -705,7 +710,8 @@ fn(async t => {
     colorAttachments: [
     {
       view: outputTexture.createView(),
-      loadValue: { r: 0.0, g: 0.0, b: 0.0, a: 0.0 },
+      clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 0.0 },
+      loadOp: 'clear',
       storeOp: 'store' }] });
 
 
@@ -713,7 +719,7 @@ fn(async t => {
   renderPass.setPipeline(renderPipeline);
   renderPass.setIndexBuffer(indexBuffer, 'uint16', bufferOffset, 4);
   renderPass.drawIndexed(1);
-  renderPass.endPass();
+  renderPass.end();
   t.queue.submit([encoder.finish()]);
 
   t.CheckBufferAndOutputTexture(indexBuffer, bufferSize, outputTexture);
@@ -728,18 +734,18 @@ have been initialized to 0.`).
 params((u) =>
 u.combine('test_indexed_draw', [true, false]).beginSubcases().combine('bufferOffset', [0, 16])).
 
-fn(async t => {
+fn(async (t) => {
   const { test_indexed_draw, bufferOffset } = t.params;
 
   const renderPipeline = t.CreateRenderPipelineForTest(
   t.device.createShaderModule({
     code: `
     struct VertexOut {
-      @location(0) color : vec4<f32>;
-      @builtin(position) position : vec4<f32>;
+      @location(0) color : vec4<f32>,
+      @builtin(position) position : vec4<f32>,
     };
 
-    @stage(vertex) fn main() -> VertexOut {
+    @vertex fn main() -> VertexOut {
       var output : VertexOut;
       output.color = vec4<f32>(1.0, 0.0, 0.0, 1.0);
       output.position = vec4<f32>(0.0, 0.0, 0.0, 1.0);
@@ -772,7 +778,7 @@ fn(async t => {
     colorAttachments: [
     {
       view: outputTexture.createView(),
-      loadValue: 'load',
+      loadOp: 'load',
       storeOp: 'store' }] });
 
 
@@ -791,7 +797,7 @@ fn(async t => {
     renderPass.drawIndirect(indirectBuffer, bufferOffset);
   }
 
-  renderPass.endPass();
+  renderPass.end();
   t.queue.submit([encoder.finish()]);
 
   // The indirect buffer should be lazily cleared to 0, so we actually draw nothing and the color
@@ -801,20 +807,22 @@ fn(async t => {
 
 g.test('indirect_buffer_for_dispatch_indirect').
 desc(
-`Verify when we use a GPUBuffer as an indirect buffer for dispatchIndirect() just after the
-creation of that GPUBuffer, all the contents in that GPUBuffer have been initialized to 0.`).
+`Verify when we use a GPUBuffer as an indirect buffer for dispatchWorkgroupsIndirect() just
+    after the creation of that GPUBuffer, all the contents in that GPUBuffer have been initialized
+    to 0.`).
 
-paramsSubcasesOnly(u => u.combine('bufferOffset', [0, 16])).
-fn(async t => {
+paramsSubcasesOnly((u) => u.combine('bufferOffset', [0, 16])).
+fn(async (t) => {
   const { bufferOffset } = t.params;
 
   const computePipeline = t.device.createComputePipeline({
+    layout: 'auto',
     compute: {
       module: t.device.createShaderModule({
         code: `
         @group(0) @binding(0) var outImage : texture_storage_2d<rgba8unorm, write>;
 
-        @stage(compute) @workgroup_size(1) fn main() {
+        @compute @workgroup_size(1) fn main() {
           textureStore(outImage, vec2<i32>(0, 0), vec4<f32>(1.0, 0.0, 0.0, 1.0));
         }` }),
 
@@ -857,8 +865,8 @@ fn(async t => {
   const computePass = encoder.beginComputePass();
   computePass.setBindGroup(0, bindGroup);
   computePass.setPipeline(computePipeline);
-  computePass.dispatchIndirect(indirectBuffer, bufferOffset);
-  computePass.endPass();
+  computePass.dispatchWorkgroupsIndirect(indirectBuffer, bufferOffset);
+  computePass.end();
   t.queue.submit([encoder.finish()]);
 
   // The indirect buffer should be lazily cleared to 0, so we actually draw nothing and the color

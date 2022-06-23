@@ -5,8 +5,14 @@
 // <canvas> element from html page
 
 
-export function run(format, compositingAlphaMode) {
-  runRefTest(async t => {
+
+
+export function run(
+format,
+compositingAlphaMode,
+writeCanvasMethod)
+{
+  runRefTest(async (t) => {
     const ctx = cvs.getContext('webgpu');
     assert(ctx !== null, 'Failed to get WebGPU context from canvas');
 
@@ -15,6 +21,7 @@ export function run(format, compositingAlphaMode) {
       case 'bgra8unorm-srgb':
       case 'rgba8unorm':
       case 'rgba8unorm-srgb':
+      case 'rgba16float':
         break;
       default:
         unreachable();}
@@ -23,23 +30,33 @@ export function run(format, compositingAlphaMode) {
     // This is mimic globalAlpha in 2d context blending behavior
     const a = compositingAlphaMode === 'opaque' ? 1.0.toFixed(1) : 0.5.toFixed(1);
 
+    let usage = 0;
+    switch (writeCanvasMethod) {
+      case 'draw':
+        usage = GPUTextureUsage.RENDER_ATTACHMENT;
+        break;
+      case 'copy':
+        usage = GPUTextureUsage.COPY_DST;
+        break;}
+
     ctx.configure({
       device: t.device,
       format,
-      usage: GPUTextureUsage.RENDER_ATTACHMENT,
+      usage,
       compositingAlphaMode });
 
 
     const pipeline = t.device.createRenderPipeline({
+      layout: 'auto',
       vertex: {
         module: t.device.createShaderModule({
           code: `
 struct VertexOutput {
-@builtin(position) Position : vec4<f32>;
-@location(0) fragColor : vec4<f32>;
-};
+@builtin(position) Position : vec4<f32>,
+@location(0) fragColor : vec4<f32>,
+}
 
-@stage(vertex)
+@vertex
 fn main(@builtin(vertex_index) VertexIndex : u32) -> VertexOutput {
 var pos = array<vec2<f32>, 6>(
     vec2<f32>( 0.75,  0.75),
@@ -50,16 +67,16 @@ var pos = array<vec2<f32>, 6>(
     vec2<f32>(-0.75,  0.75));
 
 var offset = array<vec2<f32>, 4>(
-vec2<f32>( -0.125,  0.125),
-vec2<f32>( 0.125, 0.125),
-vec2<f32>(-0.125, -0.125),
-vec2<f32>( 0.125,  -0.125));
+vec2<f32>( -0.25,  0.25),
+vec2<f32>( 0.25, 0.25),
+vec2<f32>(-0.25, -0.25),
+vec2<f32>( 0.25,  -0.25));
 
 var color = array<vec4<f32>, 4>(
-    vec4<f32>(0.49804, 0.0, 0.0, ${a}),
-    vec4<f32>(0.0, 0.49804, 0.0, ${a}),
-    vec4<f32>(0.0, 0.0, 0.49804, ${a}),
-    vec4<f32>(0.49804, 0.49804, 0.0, ${a})); // 0.49804 -> 0x7f
+    vec4<f32>(0.4, 0.0, 0.0, ${a}),
+    vec4<f32>(0.0, 0.4, 0.0, ${a}),
+    vec4<f32>(0.0, 0.0, 0.4, ${a}),
+    vec4<f32>(0.4, 0.4, 0.0, ${a})); // 0.4 -> 0x66
 
 var output : VertexOutput;
 output.Position = vec4<f32>(pos[VertexIndex % 6u] + offset[VertexIndex / 6u], 0.0, 1.0);
@@ -73,7 +90,7 @@ return output;
       fragment: {
         module: t.device.createShaderModule({
           code: `
-@stage(fragment)
+@fragment
 fn main(@location(0) fragColor: vec4<f32>) -> @location(0) vec4<f32> {
 return fragColor;
 }
@@ -109,12 +126,25 @@ return fragColor;
 
 
 
+    let renderTarget;
+    switch (writeCanvasMethod) {
+      case 'draw':
+        renderTarget = ctx.getCurrentTexture();
+        break;
+      case 'copy':
+        renderTarget = t.device.createTexture({
+          size: [ctx.canvas.width, ctx.canvas.height],
+          format,
+          usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC });
+
+        break;}
+
     const renderPassDescriptor = {
       colorAttachments: [
       {
-        view: ctx.getCurrentTexture().createView(),
-
-        loadValue: { r: 0.0, g: 0.0, b: 0.0, a: 0.0 },
+        view: renderTarget.createView(),
+        clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 0.0 },
+        loadOp: 'clear',
         storeOp: 'store' }] };
 
 
@@ -127,7 +157,24 @@ return fragColor;
     passEncoder.draw(6, 1, 6, 0);
     passEncoder.draw(6, 1, 12, 0);
     passEncoder.draw(6, 1, 18, 0);
-    passEncoder.endPass();
+    passEncoder.end();
+
+    switch (writeCanvasMethod) {
+      case 'draw':
+        break;
+      case 'copy':
+        commandEncoder.copyTextureToTexture(
+        {
+          texture: renderTarget },
+
+        {
+          texture: ctx.getCurrentTexture() },
+
+        [ctx.canvas.width, ctx.canvas.height]);
+
+        break;}
+
+
     t.device.queue.submit([commandEncoder.finish()]);
   });
 }

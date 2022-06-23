@@ -11,14 +11,14 @@ import { kRenderEncodeTypeParams, buildBufferOffsetAndSizeOOBTestParams } from '
 
 export const g = makeTestGroup(ValidationTest);
 
-g.test('index_buffer').
+g.test('index_buffer_state').
 desc(
 `
 Tests index buffer must be valid.
   `).
 
 paramsSubcasesOnly(kRenderEncodeTypeParams.combine('state', kResourceStates)).
-fn(t => {
+fn((t) => {
   const { encoderType, state } = t.params;
   const indexBuffer = t.createBufferWithState(state, {
     size: 16,
@@ -33,7 +33,23 @@ fn(t => {
 g.test('index_buffer,device_mismatch').
 desc('Tests setIndexBuffer cannot be called with an index buffer created from another device').
 paramsSubcasesOnly(kRenderEncodeTypeParams.combine('mismatched', [true, false])).
-unimplemented();
+beforeAllSubcases((t) => {
+  t.selectMismatchedDeviceOrSkipTestCase(undefined);
+}).
+fn(async (t) => {
+  const { encoderType, mismatched } = t.params;
+  const device = mismatched ? t.mismatchedDevice : t.device;
+
+  const indexBuffer = device.createBuffer({
+    size: 16,
+    usage: GPUBufferUsage.INDEX });
+
+  t.trackForCleanup(indexBuffer);
+
+  const { encoder, validateFinish } = t.createEncoder(encoderType);
+  encoder.setIndexBuffer(indexBuffer, 'uint32');
+  validateFinish(!mismatched);
+});
 
 g.test('index_buffer_usage').
 desc(
@@ -48,7 +64,7 @@ GPUConst.BufferUsage.COPY_DST,
 GPUConst.BufferUsage.COPY_DST | GPUConst.BufferUsage.INDEX])).
 
 
-fn(t => {
+fn((t) => {
   const { encoderType, usage } = t.params;
   const indexBuffer = t.device.createBuffer({
     size: 16,
@@ -69,11 +85,11 @@ Tests offset must be a multiple of index format’s byte size.
 paramsSubcasesOnly(
 kRenderEncodeTypeParams.
 combine('indexFormat', ['uint16', 'uint32']).
-expand('offset', p => {
+expand('offset', (p) => {
   return p.indexFormat === 'uint16' ? [0, 1, 2] : [0, 2, 4];
 })).
 
-fn(t => {
+fn((t) => {
   const { encoderType, indexFormat, offset } = t.params;
   const indexBuffer = t.device.createBuffer({
     size: 16,
@@ -95,7 +111,7 @@ Tests offset and size cannot be larger than index buffer size.
   `).
 
 paramsSubcasesOnly(buildBufferOffsetAndSizeOOBTestParams(4, 256)).
-fn(t => {
+fn((t) => {
   const { encoderType, offset, size, _valid } = t.params;
   const indexBuffer = t.device.createBuffer({
     size: 256,

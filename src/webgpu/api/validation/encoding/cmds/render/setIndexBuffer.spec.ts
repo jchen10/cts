@@ -11,7 +11,7 @@ import { kRenderEncodeTypeParams, buildBufferOffsetAndSizeOOBTestParams } from '
 
 export const g = makeTestGroup(ValidationTest);
 
-g.test('index_buffer')
+g.test('index_buffer_state')
   .desc(
     `
 Tests index buffer must be valid.
@@ -33,7 +33,23 @@ Tests index buffer must be valid.
 g.test('index_buffer,device_mismatch')
   .desc('Tests setIndexBuffer cannot be called with an index buffer created from another device')
   .paramsSubcasesOnly(kRenderEncodeTypeParams.combine('mismatched', [true, false]))
-  .unimplemented();
+  .beforeAllSubcases(t => {
+    t.selectMismatchedDeviceOrSkipTestCase(undefined);
+  })
+  .fn(async t => {
+    const { encoderType, mismatched } = t.params;
+    const device = mismatched ? t.mismatchedDevice : t.device;
+
+    const indexBuffer = device.createBuffer({
+      size: 16,
+      usage: GPUBufferUsage.INDEX,
+    });
+    t.trackForCleanup(indexBuffer);
+
+    const { encoder, validateFinish } = t.createEncoder(encoderType);
+    encoder.setIndexBuffer(indexBuffer, 'uint32');
+    validateFinish(!mismatched);
+  });
 
 g.test('index_buffer_usage')
   .desc(

@@ -3,27 +3,31 @@
 **/export const description = `
 Validation tests for resolveQuerySet.
 `;import { makeTestGroup } from '../../../../../common/framework/test_group.js';import { GPUConst } from '../../../../constants.js';
+import { kResourceStates } from '../../../../gpu_test.js';
 import { ValidationTest } from '../../validation_test.js';
 
 export const g = makeTestGroup(ValidationTest);
 
 export const kQueryCount = 2;
 
-g.test('invalid_queryset_and_destination_buffer').
+g.test('queryset_and_destination_buffer_state').
 desc(
 `
-Tests that resolve query set with invalid object.
-- invalid GPUQuerySet that failed during creation.
-- invalid destination buffer that failed during creation.
+Tests that resolve query set must be with valid query set and destination buffer.
+- {invalid, destroyed} GPUQuerySet results in validation error.
+- {invalid, destroyed} destination buffer results in validation error.
   `).
 
-paramsSubcasesOnly([
-{ querySetState: 'valid', destinationState: 'valid' }, // control case
-{ querySetState: 'invalid', destinationState: 'valid' },
-{ querySetState: 'valid', destinationState: 'invalid' }]).
+params((u) =>
+u //
+.combine('querySetState', kResourceStates).
+combine('destinationState', kResourceStates)).
 
-fn(async t => {
+fn(async (t) => {
   const { querySetState, destinationState } = t.params;
+
+  const shouldBeValid = querySetState !== 'invalid' && destinationState !== 'invalid';
+  const shouldSubmitSuccess = querySetState === 'valid' && destinationState === 'valid';
 
   const querySet = t.createQuerySetWithState(querySetState);
 
@@ -34,7 +38,7 @@ fn(async t => {
 
   const encoder = t.createEncoder('non-pass');
   encoder.encoder.resolveQuerySet(querySet, 0, 1, destination, 0);
-  encoder.validateFinish(querySetState === 'valid' && destinationState === 'valid');
+  encoder.validateFinishAndSubmit(shouldBeValid, shouldSubmitSuccess);
 });
 
 g.test('first_query_and_query_count').
@@ -50,7 +54,7 @@ paramsSubcasesOnly([
 { firstQuery: 1, queryCount: kQueryCount },
 { firstQuery: kQueryCount, queryCount: 1 }]).
 
-fn(async t => {
+fn(async (t) => {
   const { firstQuery, queryCount } = t.params;
 
   const querySet = t.device.createQuerySet({ type: 'occlusion', count: kQueryCount });
@@ -78,7 +82,7 @@ GPUConst.BufferUsage.STORAGE,
 GPUConst.BufferUsage.QUERY_RESOLVE // control case
 ])).
 
-fn(async t => {
+fn(async (t) => {
   const querySet = t.device.createQuerySet({ type: 'occlusion', count: kQueryCount });
   const destination = t.device.createBuffer({
     size: kQueryCount * 8,
@@ -97,8 +101,8 @@ Tests that resolve query set with invalid destinationOffset:
 - destinationOffset is not a multiple of 256
   `).
 
-paramsSubcasesOnly(u => u.combine('destinationOffset', [0, 128, 256, 384])).
-fn(async t => {
+paramsSubcasesOnly((u) => u.combine('destinationOffset', [0, 128, 256, 384])).
+fn(async (t) => {
   const { destinationOffset } = t.params;
   const querySet = t.device.createQuerySet({ type: 'occlusion', count: kQueryCount });
   const destination = t.device.createBuffer({
@@ -127,7 +131,7 @@ u.combineWithParams([
 { queryCount: 2, bufferSize: 264, destinationOffset: 256, _success: false }])).
 
 
-fn(async t => {
+fn(async (t) => {
   const { queryCount, bufferSize, destinationOffset, _success } = t.params;
   const querySet = t.device.createQuerySet({ type: 'occlusion', count: queryCount });
   const destination = t.device.createBuffer({
@@ -149,5 +153,30 @@ paramsSubcasesOnly([
 { querySetMismatched: true, bufferMismatched: false },
 { querySetMismatched: false, bufferMismatched: true }]).
 
-unimplemented();
+beforeAllSubcases((t) => {
+  t.selectMismatchedDeviceOrSkipTestCase(undefined);
+}).
+fn(async (t) => {
+  const { querySetMismatched, bufferMismatched } = t.params;
+  const mismatched = querySetMismatched || bufferMismatched;
+
+  const device = mismatched ? t.mismatchedDevice : t.device;
+  const queryCout = 1;
+
+  const querySet = device.createQuerySet({
+    type: 'occlusion',
+    count: queryCout });
+
+  t.trackForCleanup(querySet);
+
+  const buffer = device.createBuffer({
+    size: queryCout * 8,
+    usage: GPUBufferUsage.QUERY_RESOLVE });
+
+  t.trackForCleanup(buffer);
+
+  const encoder = t.createEncoder('non-pass');
+  encoder.encoder.resolveQuerySet(querySet, 0, queryCout, buffer, 0);
+  encoder.validateFinish(!mismatched);
+});
 //# sourceMappingURL=resolveQuerySet.spec.js.map

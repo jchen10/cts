@@ -13,7 +13,7 @@ const kColorAttachmentFormat = 'rgba32float';
 const kDX = 0.1; // Desired partial derivative in x
 const kDY = 0.2; // Desired partial derivative in y
 
-// renders a two-triagnle quad with uvs mapped a specific way so that dpdx/dpdy return expected values
+// renders a two-triangle quad with uvs mapped a specific way so that dpdx/dpdy return expected values
 class DerivativesTest extends GPUTest {
   copyRenderTargetToBuffer(rt: GPUTexture): GPUBuffer {
     const byteLength = kRTSize * kBytesPerRow;
@@ -38,15 +38,16 @@ class DerivativesTest extends GPUTest {
     await super.init();
 
     this.pipeline = this.device.createRenderPipeline({
+      layout: 'auto',
       vertex: {
         module: this.device.createShaderModule({
           code: `
             struct Outputs {
-              @builtin(position) Position : vec4<f32>;
-              @location(0) fragUV : vec2<f32>;
+              @builtin(position) Position : vec4<f32>,
+              @location(0) fragUV : vec2<f32>,
             };
 
-            @stage(vertex) fn main(
+            @vertex fn main(
               @builtin(vertex_index) VertexIndex : u32) -> Outputs {
               // Full screen quad
               var position : array<vec3<f32>, 6> = array<vec3<f32>, 6>(
@@ -82,11 +83,11 @@ class DerivativesTest extends GPUTest {
         module: this.device.createShaderModule({
           code: `
             struct Uniforms {
-              numIterations : i32;
+              numIterations : i32
             };
             @binding(0) @group(0) var<uniform> uniforms : Uniforms;
 
-            @stage(fragment) fn main(
+            @fragment fn main(
               @builtin(position) FragCoord : vec4<f32>,
               @location(0) fragUV: vec2<f32>) -> @location(0) vec4<f32> {
 
@@ -159,14 +160,15 @@ class DerivativesTest extends GPUTest {
         {
           view: colorAttachmentView,
           storeOp: 'store',
-          loadValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
+          clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
+          loadOp: 'clear',
         },
       ],
     });
     pass.setPipeline(this.pipeline);
     pass.setBindGroup(0, bindGroup);
     pass.draw(6);
-    pass.endPass();
+    pass.end();
     this.device.queue.submit([encoder.finish()]);
 
     return colorAttachment;
@@ -201,11 +203,11 @@ g.test('derivative_in_varying_loop')
 
     t.expect(
       almostEqual(result.data[0], expected_x),
-      'Render results with numIterations * dx is ' + result.data[0] + ', expected: ' + expected_x
+      `Render results with numIterations * dx is ${result.data[0]}, expected: ${expected_x}`
     );
     t.expect(
       almostEqual(result.data[1], expected_y),
-      'Render results with numIterations * dy is ' + result.data[1] + ', expected: ' + expected_y
+      `Render results with numIterations * dy is ${result.data[1]}, expected: ${expected_y}`
     );
 
     result.cleanup();

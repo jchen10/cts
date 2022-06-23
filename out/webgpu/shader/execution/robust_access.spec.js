@@ -17,11 +17,11 @@ const kMaxI32 = 0x7fff_ffff;
 const kMinI32 = -0x8000_0000;
 
 /**
-                               * Wraps the provided source into a harness that checks calling `runTest()` returns 0.
-                               *
-                               * Non-test bindings are in bind group 1, including:
-                               * - `constants.zero`: a dynamically-uniform `0u` value.
-                               */
+ * Wraps the provided source into a harness that checks calling `runTest()` returns 0.
+ *
+ * Non-test bindings are in bind group 1, including:
+ * - `constants.zero`: a dynamically-uniform `0u` value.
+ */
 function runShaderTest(
 t,
 stage,
@@ -42,18 +42,18 @@ dynamicOffsets)
 
   const source = `
     struct Constants {
-      zero: u32;
+      zero: u32
     };
     @group(1) @binding(0) var<uniform> constants: Constants;
 
     struct Result {
-      value: u32;
+      value: u32
     };
-    @group(1) @binding(1) var<storage, write> result: Result;
+    @group(1) @binding(1) var<storage, read_write> result: Result;
 
     ${testSource}
 
-    @stage(compute) @workgroup_size(1)
+    @compute @workgroup_size(1)
     fn main() {
       _ = constants.zero; // Ensure constants buffer is statically-accessed
       result.value = runTest();
@@ -84,8 +84,8 @@ dynamicOffsets)
   pass.setPipeline(pipeline);
   pass.setBindGroup(0, testGroup, dynamicOffsets);
   pass.setBindGroup(1, group);
-  pass.dispatch(1);
-  pass.endPass();
+  pass.dispatchWorkgroups(1);
+  pass.end();
 
   t.queue.submit([encoder.finish()]);
 
@@ -105,8 +105,8 @@ type,
 }
 
 /**
-   * Generate a bunch of indexable types (vec, mat, sized/unsized array) for testing.
-   */
+ * Generate a bunch of indexable types (vec, mat, sized/unsized array) for testing.
+ */
 
 g.test('linear_memory').
 desc(
@@ -163,12 +163,12 @@ combineWithParams([
 { containerType: 'matrix' },
 { containerType: 'vector' }]).
 
-expand('isAtomic', p => supportsAtomics(p) ? [false, true] : [false]).
+expand('isAtomic', (p) => supportsAtomics(p) ? [false, true] : [false]).
 beginSubcases().
 expand('baseType', supportedScalarTypes).
 expandWithParams(generateTypes)).
 
-fn(async t => {
+fn(async (t) => {
   const {
     storageClass,
     storageMode,
@@ -196,9 +196,9 @@ fn(async t => {
   // in the global scope or inside the test function itself.
   const structDecl = `
       struct S {
-        startCanary: array<u32, 10>;
-        data: ${type};
-        endCanary: array<u32, 10>;
+        startCanary: array<u32, 10>,
+        data: ${type},
+        endCanary: array<u32, 10>,
       };`;
 
   const testGroupBGLEntires = [];
@@ -212,7 +212,7 @@ fn(async t => {
         const qualifiers = storageClass === 'storage' ? `storage, ${storageMode}` : storageClass;
         globalSource += `
           struct TestData {
-            data: ${type};
+            data: ${type},
           };
           @group(0) @binding(0) var<${qualifiers}> s: TestData;`;
 
@@ -310,7 +310,13 @@ fn(async t => {
         switch (access) {
           case 'read':
             {
-              const exprLoadElement = isAtomic ? `atomicLoad(&${exprElement})` : exprElement;
+              let exprLoadElement = isAtomic ? `atomicLoad(&${exprElement})` : exprElement;
+              if (storageClass === 'uniform' && containerType === 'array') {
+                // Scalar types will be wrapped in a vec4 to satisfy array element size
+                // requirements for the uniform address space, so we need an additional index
+                // accessor expression.
+                exprLoadElement += '[0]';
+              }
               let condition = `${exprLoadElement} != ${exprZeroElement}`;
               if (containerType === 'matrix') condition = `any(${condition})`;
               testFunctionSource += `

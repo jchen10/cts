@@ -10,6 +10,7 @@ import { Logger } from '../internal/logging/logger.js';
 import { parseQuery } from '../internal/query/parseQuery.js';
 
 
+import { Colors } from '../util/colors.js';
 import { setGPUProvider } from '../util/navigator_gpu.js';
 
 import sys from './helper/sys.js';
@@ -18,6 +19,7 @@ function usage(rc) {
   console.log('Usage:');
   console.log(`  tools/run_${sys.type} [OPTIONS...]`);
   console.log('Options:');
+  console.log('  --colors             Enable ANSI colors in output.');
   console.log('  --verbose            Print result/log of every test as it runs.');
   console.log('  --gpu-provider       Path to node module that provides the GPU implementation.');
   console.log('  --gpu-provider-flag  Flag to set on the gpu-provider as <flag>=<value>');
@@ -44,6 +46,8 @@ if (!sys.existsSync('src/common/runtime/cmdline.ts')) {
   usage(1);
 }
 
+Colors.enabled = false;
+
 let debug = false;
 let gpuProviderModule = undefined;
 
@@ -51,7 +55,9 @@ const gpuProviderFlags = [];
 for (let i = 0; i < sys.args.length; ++i) {
   const a = sys.args[i];
   if (a.startsWith('-')) {
-    if (a === '--gpu-provider') {
+    if (a === '--colors') {
+      Colors.enabled = true;
+    } else if (a === '--gpu-provider') {
       const modulePath = sys.args[++i];
       gpuProviderModule = require(modulePath);
     } else if (a === '--gpu-provider-flag') {
@@ -112,7 +118,7 @@ if (gpuProviderModule) {
           const result = await runTestcase(testcase);
           let message = '';
           if (result.logs !== undefined) {
-            message = result.logs.map(log => prettyPrintLog(log)).join('\n');
+            message = result.logs.map((log) => prettyPrintLog(log)).join('\n');
           }
           const status = result.status;
           const res = { status, message };
@@ -124,7 +130,7 @@ if (gpuProviderModule) {
         }
       } catch (err) {
         response.statusCode = 500;
-        response.end('run failed with error: ' + err);
+        response.end(`run failed with error: ${err}`);
       }
     } else if (request.url.startsWith(terminatePrefix)) {
       server.close();
@@ -140,7 +146,7 @@ if (gpuProviderModule) {
     const address = server.address();
     console.log(`Server listening at [[${address.port}]]`);
   });
-})().catch(ex => {
+})().catch((ex) => {
   console.error(ex.stack ?? ex.toString());
   sys.exit(1);
 });

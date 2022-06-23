@@ -75,15 +75,16 @@ import { StacklessError } from './util.js';
 
 
 
+
 export class TestTree {
   /**
-                        * The `queryToLoad` that this test tree was created for.
-                        * Test trees are always rooted at `suite:*`, but they only contain nodes that fit
-                        * within `forQuery`.
-                        *
-                        * This is used for `iterateCollapsedNodes` which only starts collapsing at the next
-                        * `TestQueryLevel` after `forQuery`.
-                        */
+   * The `queryToLoad` that this test tree was created for.
+   * Test trees are always rooted at `suite:*`, but they only contain nodes that fit
+   * within `forQuery`.
+   *
+   * This is used for `iterateCollapsedNodes` which only starts collapsing at the next
+   * `TestQueryLevel` after `forQuery`.
+   */
 
 
 
@@ -98,11 +99,11 @@ export class TestTree {
   }
 
   /**
-     * Iterate through the leaves of a version of the tree which has been pruned to exclude
-     * subtrees which:
-     * - are at a deeper `TestQueryLevel` than `this.forQuery`, and
-     * - were not a `Ordering.StrictSubset` of any of the `subqueriesToExpand` during tree creation.
-     */
+   * Iterate through the leaves of a version of the tree which has been pruned to exclude
+   * subtrees which:
+   * - are at a deeper `TestQueryLevel` than `this.forQuery`, and
+   * - were not a `Ordering.StrictSubset` of any of the `subqueriesToExpand` during tree creation.
+   */
   iterateCollapsedNodes({
     includeIntermediateNodes = false,
     includeEmptySubtrees = false,
@@ -128,12 +129,12 @@ export class TestTree {
   }
 
   /**
-     * Dissolve nodes which have only one child, e.g.:
-     *   a,* { a,b,* { a,b:* { ... } } }
-     * collapses down into:
-     *   a,* { a,b:* { ... } }
-     * which is less needlessly verbose when displaying the tree in the standalone runner.
-     */
+   * Dissolve nodes which have only one child, e.g.:
+   *   a,* { a,b,* { a,b:* { ... } } }
+   * collapses down into:
+   *   a,* { a,b:* { ... } }
+   * which is less needlessly verbose when displaying the tree in the standalone runner.
+   */
   dissolveSingleChildTrees() {
     const newRoot = dissolveSingleChildTrees(this.root);
     assert(newRoot === this.root);
@@ -351,7 +352,7 @@ subqueriesToExpand)
 
     }
   }
-  assert(foundCase, 'Query does not match any cases');
+  assert(foundCase, `Query \`${queryToLoad.toString()}\` does not match any cases`);
 
   return new TestTree(queryToLoad, subtreeL0);
 }
@@ -526,13 +527,16 @@ createSubtree)
 }
 
 function insertLeaf(parent, query, t) {
-  const key = '';
   const leaf = {
     readableRelativeName: readableNameForCase(query),
     query,
-    run: (rec, expectations) => t.run(rec, query, expectations || []) };
+    run: (rec, expectations) => t.run(rec, query, expectations || []),
+    isUnimplemented: t.isUnimplemented };
 
-  assert(!parent.children.has(key));
+
+  // This is a leaf (e.g. s:f:t:x=1;* -> s:f:t:x=1). The key is always ''.
+  const key = '';
+  assert(!parent.children.has(key), `Duplicate testcase: ${query}`);
   parent.children.set(key, leaf);
 }
 

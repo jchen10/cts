@@ -1,14 +1,19 @@
 /**
 * AUTO-GENERATED - DO NOT EDIT. Source: https://github.com/gpuweb/cts
-**/import { kMaxQueryCount } from '../../capability_info.js';import { GPUTest } from '../../gpu_test.js';
+**/import {
+kMaxQueryCount } from
+
+'../../capability_info.js';
+import { GPUTest } from '../../gpu_test.js';
+
 /**
-                                                                                                           * Base fixture for WebGPU validation tests.
-                                                                                                           */
+ * Base fixture for WebGPU validation tests.
+ */
 export class ValidationTest extends GPUTest {
   /**
-                                              * Create a GPUTexture in the specified state.
-                                              * A `descriptor` may optionally be passed, which is used when `state` is not `'invalid'`.
-                                              */
+   * Create a GPUTexture in the specified state.
+   * A `descriptor` may optionally be passed, which is used when `state` is not `'invalid'`.
+   */
   createTextureWithState(
   state,
   descriptor)
@@ -38,9 +43,9 @@ export class ValidationTest extends GPUTest {
   }
 
   /**
-     * Create a GPUTexture in the specified state. A `descriptor` may optionally be passed;
-     * if `state` is `'invalid'`, it will be modified to add an invalid combination of usages.
-     */
+   * Create a GPUTexture in the specified state. A `descriptor` may optionally be passed;
+   * if `state` is `'invalid'`, it will be modified to add an invalid combination of usages.
+   */
   createBufferWithState(
   state,
   descriptor)
@@ -62,7 +67,7 @@ export class ValidationTest extends GPUTest {
             ...descriptor,
             usage: descriptor.usage | GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_SRC });
 
-          this.device.popErrorScope();
+          void this.device.popErrorScope();
           return buffer;
         }
       case 'destroyed':{
@@ -74,9 +79,9 @@ export class ValidationTest extends GPUTest {
   }
 
   /**
-     * Create a GPUQuerySet in the specified state.
-     * A `descriptor` may optionally be passed, which is used when `state` is not `'invalid'`.
-     */
+   * Create a GPUQuerySet in the specified state.
+   * A `descriptor` may optionally be passed, which is used when `state` is not `'invalid'`.
+   */
   createQuerySetWithState(
   state,
   desc)
@@ -122,19 +127,25 @@ export class ValidationTest extends GPUTest {
   getErrorSampler() {
     this.device.pushErrorScope('validation');
     const sampler = this.device.createSampler({ lodMinClamp: -1 });
-    this.device.popErrorScope();
+    void this.device.popErrorScope();
     return sampler;
   }
 
   /**
-     * Return an arbitrarily-configured GPUTexture with the `TEXTURE_BINDING` usage and specified sampleCount.
-     */
+   * Return an arbitrarily-configured GPUTexture with the `TEXTURE_BINDING` usage and specified
+   * sampleCount. The `RENDER_ATTACHMENT` usage will also be specified if sampleCount > 1 as is
+   * required by WebGPU SPEC.
+   */
   getSampledTexture(sampleCount = 1) {
+    const usage =
+    sampleCount > 1 ?
+    GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT :
+    GPUTextureUsage.TEXTURE_BINDING;
     return this.trackForCleanup(
     this.device.createTexture({
       size: { width: 16, height: 16, depthOrArrayLayers: 1 },
       format: 'rgba8unorm',
-      usage: GPUTextureUsage.TEXTURE_BINDING,
+      usage,
       sampleCount }));
 
 
@@ -171,7 +182,7 @@ export class ValidationTest extends GPUTest {
       format: 'rgba8unorm',
       usage: GPUTextureUsage.TEXTURE_BINDING });
 
-    this.device.popErrorScope();
+    void this.device.popErrorScope();
     return texture;
   }
 
@@ -179,14 +190,14 @@ export class ValidationTest extends GPUTest {
   getErrorTextureView() {
     this.device.pushErrorScope('validation');
     const view = this.getErrorTexture().createView();
-    this.device.popErrorScope();
+    void this.device.popErrorScope();
     return view;
   }
 
   /**
-     * Return an arbitrary object of the specified {@link BindableResource} type
-     * (e.g. `'errorBuf'`, `'nonFiltSamp'`, `sampledTexMS`, etc.)
-     */
+   * Return an arbitrary object of the specified {@link BindableResource} type
+   * (e.g. `'errorBuf'`, `'nonFiltSamp'`, `sampledTexMS`, etc.)
+   */
   getBindingResource(bindingType) {
     switch (bindingType) {
       case 'errorBuf':
@@ -283,6 +294,22 @@ export class ValidationTest extends GPUTest {
 
   }
 
+  /** Return a no-op shader code snippet for the specified shader stage. */
+  getNoOpShaderCode(stage) {
+    switch (stage) {
+      case 'VERTEX':
+        return `
+          @vertex fn main() -> @builtin(position) vec4<f32> {
+            return vec4<f32>();
+          }
+        `;
+      case 'FRAGMENT':
+        return `@fragment fn main() {}`;
+      case 'COMPUTE':
+        return `@compute @workgroup_size(1) fn main() {}`;}
+
+  }
+
   /** Create a GPURenderPipeline in the specified state. */
   createRenderPipelineWithState(state) {
     return state === 'valid' ? this.createNoOpRenderPipeline() : this.createErrorRenderPipeline();
@@ -291,17 +318,16 @@ export class ValidationTest extends GPUTest {
   /** Return a GPURenderPipeline with default options and no-op vertex and fragment shaders. */
   createNoOpRenderPipeline() {
     return this.device.createRenderPipeline({
+      layout: 'auto',
       vertex: {
         module: this.device.createShaderModule({
-          code: `@stage(vertex) fn main() -> @builtin(position) vec4<f32> {
-  return vec4<f32>();
-}` }),
+          code: this.getNoOpShaderCode('VERTEX') }),
 
         entryPoint: 'main' },
 
       fragment: {
         module: this.device.createShaderModule({
-          code: '@stage(fragment) fn main() {}' }),
+          code: this.getNoOpShaderCode('FRAGMENT') }),
 
         entryPoint: 'main',
         targets: [{ format: 'rgba8unorm', writeMask: 0 }] },
@@ -314,6 +340,7 @@ export class ValidationTest extends GPUTest {
   createErrorRenderPipeline() {
     this.device.pushErrorScope('validation');
     const pipeline = this.device.createRenderPipeline({
+      layout: 'auto',
       vertex: {
         module: this.device.createShaderModule({
           code: '' }),
@@ -321,17 +348,19 @@ export class ValidationTest extends GPUTest {
         entryPoint: '' } });
 
 
-    this.device.popErrorScope();
+    void this.device.popErrorScope();
     return pipeline;
   }
 
   /** Return a GPUComputePipeline with a no-op shader. */
-  createNoOpComputePipeline(layout) {
+  createNoOpComputePipeline(
+  layout = 'auto')
+  {
     return this.device.createComputePipeline({
       layout,
       compute: {
         module: this.device.createShaderModule({
-          code: '@stage(compute) @workgroup_size(1) fn main() {}' }),
+          code: this.getNoOpShaderCode('COMPUTE') }),
 
         entryPoint: 'main' } });
 
@@ -342,6 +371,7 @@ export class ValidationTest extends GPUTest {
   createErrorComputePipeline() {
     this.device.pushErrorScope('validation');
     const pipeline = this.device.createComputePipeline({
+      layout: 'auto',
       compute: {
         module: this.device.createShaderModule({
           code: '' }),
@@ -349,7 +379,54 @@ export class ValidationTest extends GPUTest {
         entryPoint: '' } });
 
 
-    this.device.popErrorScope();
+    void this.device.popErrorScope();
     return pipeline;
+  }
+
+  /** Return an invalid GPUShaderModule. */
+  createInvalidShaderModule() {
+    this.device.pushErrorScope('validation');
+    const code = 'deadbeaf'; // Something make no sense
+    const shaderModule = this.device.createShaderModule({ code });
+    void this.device.popErrorScope();
+    return shaderModule;
+  }
+
+  /** Helper for testing createRenderPipeline(Async) validation */
+  doCreateRenderPipelineTest(
+  isAsync,
+  _success,
+  descriptor)
+  {
+    if (isAsync) {
+      if (_success) {
+        this.shouldResolve(this.device.createRenderPipelineAsync(descriptor));
+      } else {
+        this.shouldReject('OperationError', this.device.createRenderPipelineAsync(descriptor));
+      }
+    } else {
+      this.expectValidationError(() => {
+        this.device.createRenderPipeline(descriptor);
+      }, !_success);
+    }
+  }
+
+  /** Helper for testing createComputePipeline(Async) validation */
+  doCreateComputePipelineTest(
+  isAsync,
+  _success,
+  descriptor)
+  {
+    if (isAsync) {
+      if (_success) {
+        this.shouldResolve(this.device.createComputePipelineAsync(descriptor));
+      } else {
+        this.shouldReject('OperationError', this.device.createComputePipelineAsync(descriptor));
+      }
+    } else {
+      this.expectValidationError(() => {
+        this.device.createComputePipeline(descriptor);
+      }, !_success);
+    }
   }}
 //# sourceMappingURL=validation_test.js.map

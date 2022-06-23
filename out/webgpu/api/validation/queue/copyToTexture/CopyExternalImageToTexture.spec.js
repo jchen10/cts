@@ -14,9 +14,11 @@ kValidTextureFormatsForCopyE2T } from
 import { kResourceStates } from '../../../../gpu_test.js';
 import {
 
+canCopyFromCanvasContext,
 createCanvas,
 createOnscreenCanvas,
-createOffscreenCanvas } from
+createOffscreenCanvas,
+kValidCanvasContextIds } from
 '../../../../util/create_elements.js';
 import { ValidationTest } from '../../validation_test.js';
 
@@ -25,11 +27,6 @@ const kDefaultWidth = 32;
 const kDefaultHeight = 32;
 const kDefaultDepth = 1;
 const kDefaultMipLevelCount = 6;
-
-/** Valid contextId for HTMLCanvasElement/OffscreenCanvas,
-                                  *  spec: https://html.spec.whatwg.org/multipage/canvas.html#dom-canvas-getcontext
-                                  */
-export const kValidContextId = ['2d', 'bitmaprenderer', 'webgl', 'webgl2', 'webgpu'];
 
 function computeMipMapSize(width, height, mipLevel) {
   return {
@@ -123,20 +120,12 @@ function generateCopySizeForDstOOB({ mipLevel, dstOrigin }) {
   ];
 }
 
-function canCopyFromContextType(contextName) {
-  switch (contextName) {
-    case '2d':
-    case 'webgl':
-    case 'webgl2':
-    case 'webgpu':
-      return true;
-    default:
-      return false;}
-
-}
-
 class CopyExternalImageToTextureTest extends ValidationTest {
   getImageData(width, height) {
+    if (typeof ImageData === 'undefined') {
+      this.skip('ImageData is not supported.');
+    }
+
     const pixelSize = kDefaultBytesPerPixel * width * height;
     const imagePixels = new Uint8ClampedArray(pixelSize);
     return new ImageData(imagePixels, width, height);
@@ -154,6 +143,13 @@ class CopyExternalImageToTextureTest extends ValidationTest {
     ctx.drawImage(content, 0, 0);
 
     return canvas;
+  }
+
+  createImageBitmap(image) {
+    if (typeof createImageBitmap === 'undefined') {
+      this.skip('Creating ImageBitmaps is not supported.');
+    }
+    return createImageBitmap(image);
   }
 
   runTest(
@@ -192,7 +188,7 @@ desc(
 `
   Test HTMLCanvasElement as source image with different contexts.
 
-  Call HTMLCanvasElment.getContext() with different context type.
+  Call HTMLCanvasElement.getContext() with different context type.
   Only '2d', 'experimental-webgl', 'webgl', 'webgl2' is valid context
   type.
 
@@ -201,14 +197,14 @@ desc(
 
 params((u) =>
 u //
-.combine('contextType', kValidContextId).
+.combine('contextType', kValidCanvasContextIds).
 beginSubcases().
 combine('copySize', [
 { width: 0, height: 0, depthOrArrayLayers: 0 },
 { width: 1, height: 1, depthOrArrayLayers: 1 }])).
 
 
-fn(async t => {
+fn(async (t) => {
   const { contextType, copySize } = t.params;
   const canvas = createOnscreenCanvas(t, 1, 1);
   const dstTexture = t.device.createTexture({
@@ -229,7 +225,7 @@ fn(async t => {
   { texture: dstTexture },
   copySize,
   true, // No validation errors.
-  canCopyFromContextType(contextType) ? '' : 'OperationError');
+  canCopyFromCanvasContext(contextType) ? '' : 'OperationError');
 
 });
 
@@ -246,14 +242,14 @@ desc(
 
 params((u) =>
 u //
-.combine('contextType', kValidContextId).
+.combine('contextType', kValidCanvasContextIds).
 beginSubcases().
 combine('copySize', [
 { width: 0, height: 0, depthOrArrayLayers: 0 },
 { width: 1, height: 1, depthOrArrayLayers: 1 }])).
 
 
-fn(async t => {
+fn(async (t) => {
   const { contextType, copySize } = t.params;
   const canvas = createOffscreenCanvas(t, 1, 1);
   const dstTexture = t.device.createTexture({
@@ -262,9 +258,10 @@ fn(async t => {
     usage: GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT });
 
 
-  // Workaround the compile error that 'webgpu' is not a valid
-  // OffscreenRenderingContextId.
+  // MAINTENANCE_TODO: Workaround for @types/offscreencanvas missing an overload of
+  // `OffscreenCanvas.getContext` that takes `string` or a union of context types.
   const ctx = canvas.getContext(contextType);
+
   if (ctx === null) {
     t.skip('Failed to get context for canvas element');
     return;
@@ -276,7 +273,7 @@ fn(async t => {
   { texture: dstTexture },
   copySize,
   true, // No validation errors.
-  canCopyFromContextType(contextType) ? '' : 'OperationError');
+  canCopyFromCanvasContext(contextType) ? '' : 'OperationError');
 
 });
 
@@ -305,8 +302,11 @@ combine('copySize', [
 { width: 1, height: 1, depthOrArrayLayers: 1 }])).
 
 
-fn(async t => {
+fn(async (t) => {
   const { sourceImage, isOriginClean, contentFrom, copySize } = t.params;
+  if (typeof document === 'undefined') {
+    t.skip('DOM is not available to create an image element.');
+  }
 
   const crossOriginUrl = 'https://get.webgl.org/conformance-resources/opengl_logo.jpg';
   const originCleanUrl = getResourcePath('Di-3d.png');
@@ -340,7 +340,7 @@ fn(async t => {
         break;
       }
     case 'imageBitmap':{
-        source = await createImageBitmap(img);
+        source = await t.createImageBitmap(img);
         break;
       }
     case 'canvas':
@@ -357,7 +357,7 @@ fn(async t => {
   let externalImage;
   switch (sourceImage) {
     case 'imageBitmap':{
-        externalImage = await createImageBitmap(source);
+        externalImage = await t.createImageBitmap(source);
         break;
       }
     case 'canvas':
@@ -406,9 +406,9 @@ combine('copySize', [
 { width: 1, height: 1, depthOrArrayLayers: 1 }])).
 
 
-fn(async t => {
+fn(async (t) => {
   const { closed, copySize } = t.params;
-  const imageBitmap = await createImageBitmap(t.getImageData(1, 1));
+  const imageBitmap = await t.createImageBitmap(t.getImageData(1, 1));
   const dstTexture = t.device.createTexture({
     size: { width: 1, height: 1, depthOrArrayLayers: 1 },
     format: 'bgra8unorm',
@@ -456,7 +456,7 @@ combine('copySize', [
 { width: 1, height: 1, depthOrArrayLayers: 1 }])).
 
 
-fn(async t => {
+fn(async (t) => {
   const { state, copySize } = t.params;
   const canvas = createOnscreenCanvas(t, 1, 1);
   if (typeof canvas.transferControlToOffscreen === 'undefined') {
@@ -531,7 +531,7 @@ combine('copySize', [
 { width: 1, height: 1, depthOrArrayLayers: 1 }])).
 
 
-fn(async t => {
+fn(async (t) => {
   const { state, copySize } = t.params;
   const offscreenCanvas = createOffscreenCanvas(t, 1, 1);
   const dstTexture = t.device.createTexture({
@@ -555,8 +555,8 @@ fn(async t => {
       }
     case 'detached-hascontext':{
         const messageChannel = new MessageChannel();
-        const port2FirstMessage = new Promise(resolve => {
-          messageChannel.port2.onmessage = m => resolve(m);
+        const port2FirstMessage = new Promise((resolve) => {
+          messageChannel.port2.onmessage = (m) => resolve(m);
         });
 
         messageChannel.port1.postMessage(offscreenCanvas, [offscreenCanvas]);
@@ -602,9 +602,9 @@ combine('copySize', [
 { width: 1, height: 1, depthOrArrayLayers: 1 }])).
 
 
-fn(async t => {
+fn(async (t) => {
   const { state, copySize } = t.params;
-  const imageBitmap = await createImageBitmap(t.getImageData(1, 1));
+  const imageBitmap = await t.createImageBitmap(t.getImageData(1, 1));
   const dstTexture = t.createTextureWithState(state);
 
   t.runTest({ source: imageBitmap }, { texture: dstTexture }, copySize, state === 'valid');
@@ -614,37 +614,24 @@ g.test('destination_texture,device_mismatch').
 desc(
 'Tests copyExternalImageToTexture cannot be called with a destination texture created from another device').
 
-paramsSubcasesOnly(u => u.combine('mismatched', [true, false])).
-unimplemented();
+paramsSubcasesOnly((u) => u.combine('mismatched', [true, false])).
+beforeAllSubcases((t) => {
+  t.selectMismatchedDeviceOrSkipTestCase(undefined);
+}).
+fn(async (t) => {
+  const { mismatched } = t.params;
+  const device = mismatched ? t.mismatchedDevice : t.device;
+  const copySize = { width: 1, height: 1, depthOrArrayLayers: 1 };
 
-g.test('destination_texture,dimension').
-desc(
-`
-  Test dst texture dimension is [1d, 2d, 3d].
-
-  Check that an error is generated when texture is not '2d' dimension.
-  `).
-
-params((u) =>
-u //
-.combine('dimension', ['1d', '2d', '3d']).
-beginSubcases().
-combine('copySize', [
-{ width: 0, height: 0, depthOrArrayLayers: 0 },
-{ width: 1, height: 1, depthOrArrayLayers: 1 }])).
-
-
-fn(async t => {
-  const { dimension, copySize } = t.params;
-  const imageBitmap = await createImageBitmap(t.getImageData(1, 1));
-  const dstTexture = t.device.createTexture({
-    size: { width: 1, height: 1, depthOrArrayLayers: 1 },
+  const texture = device.createTexture({
+    size: copySize,
     format: 'rgba8unorm',
-    usage: GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
-    dimension });
+    usage: GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT });
 
 
-  t.runTest({ source: imageBitmap }, { texture: dstTexture }, copySize, dimension === '2d');
+  const imageBitmap = await t.createImageBitmap(t.getImageData(1, 1));
+
+  t.runTest({ source: imageBitmap }, { texture }, copySize, !mismatched);
 });
 
 g.test('destination_texture,usage').
@@ -664,9 +651,9 @@ combine('copySize', [
 { width: 1, height: 1, depthOrArrayLayers: 1 }])).
 
 
-fn(async t => {
+fn(async (t) => {
   const { usage, copySize } = t.params;
-  const imageBitmap = await createImageBitmap(t.getImageData(1, 1));
+  const imageBitmap = await t.createImageBitmap(t.getImageData(1, 1));
   const dstTexture = t.device.createTexture({
     size: { width: 1, height: 1, depthOrArrayLayers: 1 },
     format: 'rgba8unorm',
@@ -698,9 +685,9 @@ combine('copySize', [
 { width: 1, height: 1, depthOrArrayLayers: 1 }])).
 
 
-fn(async t => {
+fn(async (t) => {
   const { sampleCount, copySize } = t.params;
-  const imageBitmap = await createImageBitmap(t.getImageData(1, 1));
+  const imageBitmap = await t.createImageBitmap(t.getImageData(1, 1));
   const dstTexture = t.device.createTexture({
     size: { width: 1, height: 1, depthOrArrayLayers: 1 },
     sampleCount,
@@ -728,9 +715,9 @@ combine('copySize', [
 { width: 1, height: 1, depthOrArrayLayers: 1 }])).
 
 
-fn(async t => {
+fn(async (t) => {
   const { mipLevel, copySize } = t.params;
-  const imageBitmap = await createImageBitmap(t.getImageData(1, 1));
+  const imageBitmap = await t.createImageBitmap(t.getImageData(1, 1));
   const dstTexture = t.device.createTexture({
     size: { width: kDefaultWidth, height: kDefaultHeight, depthOrArrayLayers: kDefaultDepth },
     mipLevelCount: kDefaultMipLevelCount,
@@ -763,11 +750,14 @@ combine('copySize', [
 { width: 1, height: 1, depthOrArrayLayers: 1 }])).
 
 
-fn(async t => {
+beforeAllSubcases((t) => {
+  const { format } = t.params;
+  t.selectDeviceOrSkipTestCase(kTextureFormatInfo[format].feature);
+}).
+fn(async (t) => {
   const { format, copySize } = t.params;
-  await t.selectDeviceOrSkipTestCase(kTextureFormatInfo[format].feature);
 
-  const imageBitmap = await createImageBitmap(t.getImageData(1, 1));
+  const imageBitmap = await t.createImageBitmap(t.getImageData(1, 1));
 
   // createTexture with all possible texture format may have validation error when using
   // compressed texture format.
@@ -777,7 +767,7 @@ fn(async t => {
     format,
     usage: GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT });
 
-  t.device.popErrorScope();
+  void t.device.popErrorScope();
 
   const success = kValidTextureFormatsForCopyE2T.includes(format);
 
@@ -804,9 +794,9 @@ combine('srcOrigin', [
 ]).
 expand('copySize', generateCopySizeForSrcOOB)).
 
-fn(async t => {
+fn(async (t) => {
   const { srcOrigin, copySize } = t.params;
-  const imageBitmap = await createImageBitmap(t.getImageData(kDefaultWidth, kDefaultHeight));
+  const imageBitmap = await t.createImageBitmap(t.getImageData(kDefaultWidth, kDefaultHeight));
   const dstTexture = t.device.createTexture({
     size: {
       width: kDefaultWidth + 1,
@@ -852,10 +842,10 @@ combine('mipLevel', [0, 1, kDefaultMipLevelCount - 2]).
 expand('dstOrigin', generateDstOriginValue).
 expand('copySize', generateCopySizeForDstOOB)).
 
-fn(async t => {
+fn(async (t) => {
   const { mipLevel, dstOrigin, copySize } = t.params;
 
-  const imageBitmap = await createImageBitmap(
+  const imageBitmap = await t.createImageBitmap(
   t.getImageData(kDefaultWidth + 1, kDefaultHeight + 1));
 
   const dstTexture = t.device.createTexture({

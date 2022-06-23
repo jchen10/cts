@@ -29,6 +29,7 @@ setBaseResourcePath('../out/resources');
 
 const worker = optionEnabled('worker') ? new TestWorker(debug) : undefined;
 
+const autoCloseOnPass = document.getElementById('autoCloseOnPass') as HTMLInputElement;
 const resultsVis = document.getElementById('resultsVis')!;
 
 interface SubtreeResult {
@@ -240,6 +241,9 @@ function makeSubtreeHTML(n: TestSubtree, parentLevel: TestQueryLevel): Visualize
         status += 'fail';
       }
       div.setAttribute('data-status', status);
+      if (autoCloseOnPass.checked && status === 'pass') {
+        div.firstElementChild!.removeAttribute('open');
+      }
     };
 
     updateRenderedResult();
@@ -327,9 +331,7 @@ function makeTreeNodeHeaderHTML(
     .addClass(isLeaf ? 'leafrun' : 'subtreerun')
     .attr('alt', runtext)
     .attr('title', runtext)
-    .on('click', async () => {
-      runSubtree();
-    })
+    .on('click', () => void runSubtree())
     .appendTo(header);
   $('<a>')
     .addClass('nodelink')
@@ -376,7 +378,7 @@ function makeTreeNodeHeaderHTML(
 // Collapse s:f:t:* or s:f:t:c by default.
 let lastQueryLevelToExpand: TestQueryLevel = 2;
 
-(async () => {
+void (async () => {
   const loader = new DefaultTestFileLoader();
 
   // MAINTENANCE_TODO: start populating page before waiting for everything to load?
@@ -405,6 +407,12 @@ let lastQueryLevelToExpand: TestQueryLevel = 2;
   if (rootQuery.level > lastQueryLevelToExpand) {
     lastQueryLevelToExpand = rootQuery.level;
   }
+  loader.addEventListener('import', ev => {
+    $('#info')[0].textContent = `loading: ${ev.data.url}`;
+  });
+  loader.addEventListener('finish', () => {
+    $('#info')[0].textContent = '';
+  });
   const tree = await loader.loadTree(rootQuery);
 
   tree.dissolveSingleChildTrees();
@@ -417,10 +425,10 @@ let lastQueryLevelToExpand: TestQueryLevel = 2;
   });
 
   document.getElementById('copyResultsJSON')!.addEventListener('click', () => {
-    navigator.clipboard.writeText(logger.asJSON(2));
+    void navigator.clipboard.writeText(logger.asJSON(2));
   });
 
   if (runnow) {
-    runSubtree();
+    void runSubtree();
   }
 })();

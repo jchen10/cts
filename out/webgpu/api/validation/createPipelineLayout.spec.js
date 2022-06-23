@@ -17,16 +17,21 @@ export const g = makeTestGroup(ValidationTest);
 
 g.test('number_of_dynamic_buffers_exceeds_the_maximum_value').
 desc(
-`TODO: describe
+`
+    Test that creating a pipeline layout fails with a validation error if the number of dynamic
+    buffers exceeds the maximum value in the pipeline layout.
+    - Test that creation of a pipeline using the maximum number of dynamic buffers added a dynamic
+      buffer fails.
 
-TODO(#230): Update to enforce per-stage and per-pipeline-layout limits on BGLs as well.`).
+    TODO(#230): Update to enforce per-stage and per-pipeline-layout limits on BGLs as well.
+  `).
 
 paramsSubcasesOnly((u) =>
 u //
 .combine('visibility', [0, 2, 4, 6]).
 combine('type', kBufferBindingTypes)).
 
-fn(async t => {
+fn(async (t) => {
   const { type, visibility } = t.params;
   const { maxDynamic } = bufferBindingTypeInfo({ type }).perPipelineLimitClass;
 
@@ -73,7 +78,16 @@ fn(async t => {
   });
 });
 
-g.test('number_of_bind_group_layouts_exceeds_the_maximum_value').fn(async t => {
+g.test('number_of_bind_group_layouts_exceeds_the_maximum_value').
+desc(
+`
+    Test that creating a pipeline layout fails with a validation error if the number of bind group
+    layouts exceeds the maximum value in the pipeline layout.
+    - Test that creation of a pipeline using the maximum number of bind groups added a bind group
+      fails.
+  `).
+
+fn(async (t) => {
   const bindGroupLayoutDescriptor = {
     entries: [] };
 
@@ -117,14 +131,13 @@ paramsSubcasesOnly([
 { layout0Mismatched: true, layout1Mismatched: false },
 { layout0Mismatched: false, layout1Mismatched: true }]).
 
-fn(async t => {
+beforeAllSubcases((t) => {
+  t.selectMismatchedDeviceOrSkipTestCase(undefined);
+}).
+fn(async (t) => {
   const { layout0Mismatched, layout1Mismatched } = t.params;
 
   const mismatched = layout0Mismatched || layout1Mismatched;
-
-  if (mismatched) {
-    await t.selectMismatchedDeviceOrSkipTestCase(undefined);
-  }
 
   const bglDescriptor = {
     entries: [] };

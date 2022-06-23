@@ -17,13 +17,14 @@ class F extends ValidationTest {
 
   createRenderPipeline(bufferCount) {
     return this.device.createRenderPipeline({
+      layout: 'auto',
       vertex: {
         module: this.device.createShaderModule({
           code: `
             struct Inputs {
-            ${range(bufferCount, i => `\n@location(${i}) a_position${i} : vec3<f32>;`).join('')}
+            ${range(bufferCount, i => `\n@location(${i}) a_position${i} : vec3<f32>,`).join('')}
             };
-            @stage(vertex) fn main(input : Inputs
+            @vertex fn main(input : Inputs
               ) -> @builtin(position) vec4<f32> {
               return vec4<f32>(0.0, 0.0, 0.0, 1.0);
             }`,
@@ -45,7 +46,7 @@ class F extends ValidationTest {
       fragment: {
         module: this.device.createShaderModule({
           code: `
-            @stage(fragment) fn main() -> @location(0) vec4<f32> {
+            @fragment fn main() -> @location(0) vec4<f32> {
               return vec4<f32>(0.0, 1.0, 0.0, 1.0);
             }`,
         }),
@@ -69,7 +70,8 @@ class F extends ValidationTest {
       colorAttachments: [
         {
           view: attachmentTexture.createView(),
-          loadValue: { r: 1.0, g: 0.0, b: 0.0, a: 1.0 },
+          clearValue: { r: 1.0, g: 0.0, b: 0.0, a: 1.0 },
+          loadOp: 'clear',
           storeOp: 'store',
         },
       ],
@@ -113,7 +115,7 @@ g.test('vertex_buffers_inherit_from_previous_pipeline').fn(async t => {
     const renderPass = t.beginRenderPass(commandEncoder);
     renderPass.setPipeline(pipeline1);
     renderPass.draw(3);
-    renderPass.endPass();
+    renderPass.end();
 
     t.expectValidationError(() => {
       commandEncoder.finish();
@@ -129,7 +131,7 @@ g.test('vertex_buffers_inherit_from_previous_pipeline').fn(async t => {
     renderPass.draw(3);
     renderPass.setPipeline(pipeline1);
     renderPass.draw(3);
-    renderPass.endPass();
+    renderPass.end();
 
     commandEncoder.finish();
   }
@@ -151,14 +153,14 @@ g.test('vertex_buffers_do_not_inherit_between_render_passes').fn(async t => {
       renderPass.setVertexBuffer(0, vertexBuffer1);
       renderPass.setVertexBuffer(1, vertexBuffer2);
       renderPass.draw(3);
-      renderPass.endPass();
+      renderPass.end();
     }
     {
       const renderPass = t.beginRenderPass(commandEncoder);
       renderPass.setPipeline(pipeline1);
       renderPass.setVertexBuffer(0, vertexBuffer1);
       renderPass.draw(3);
-      renderPass.endPass();
+      renderPass.end();
     }
     commandEncoder.finish();
   }
@@ -171,13 +173,13 @@ g.test('vertex_buffers_do_not_inherit_between_render_passes').fn(async t => {
       renderPass.setVertexBuffer(0, vertexBuffer1);
       renderPass.setVertexBuffer(1, vertexBuffer2);
       renderPass.draw(3);
-      renderPass.endPass();
+      renderPass.end();
     }
     {
       const renderPass = t.beginRenderPass(commandEncoder);
       renderPass.setPipeline(pipeline1);
       renderPass.draw(3);
-      renderPass.endPass();
+      renderPass.end();
     }
 
     t.expectValidationError(() => {

@@ -31,7 +31,7 @@ class F extends GPUTest {
   }
 
   MakeVertexBuffer(isIndexed) {
-    const vextices = isIndexed
+    const vertices = isIndexed
       ? [-1.0, -1.0, -1.0, 1.0, 1.0, -1.0, 1.0, 1.0]
       : [
           // The bottom left triangle
@@ -51,7 +51,7 @@ class F extends GPUTest {
           1.0,
         ];
 
-    return this.makeBufferWithContents(new Float32Array(vextices), GPUBufferUsage.VERTEX);
+    return this.makeBufferWithContents(new Float32Array(vertices), GPUBufferUsage.VERTEX);
   }
 
   MakeIndirectBuffer(isIndexed, indirectOffset) {
@@ -174,9 +174,10 @@ Params:
     const indirectBuffer = t.MakeIndirectBuffer(isIndexed, indirectOffset);
 
     const pipeline = t.device.createRenderPipeline({
+      layout: 'auto',
       vertex: {
         module: t.device.createShaderModule({
-          code: `@stage(vertex) fn main(@location(0) pos : vec2<f32>) -> @builtin(position) vec4<f32> {
+          code: `@vertex fn main(@location(0) pos : vec2<f32>) -> @builtin(position) vec4<f32> {
               return vec4<f32>(pos, 0.0, 1.0);
           }`,
         }),
@@ -199,7 +200,7 @@ Params:
 
       fragment: {
         module: t.device.createShaderModule({
-          code: `@stage(fragment) fn main() -> @location(0) vec4<f32> {
+          code: `@fragment fn main() -> @location(0) vec4<f32> {
             return vec4<f32>(0.0, 1.0, 0.0, 1.0);
         }`,
         }),
@@ -224,7 +225,8 @@ Params:
       colorAttachments: [
         {
           view: renderTarget.createView(),
-          loadValue: [0, 0, 0, 0],
+          clearValue: [0, 0, 0, 0],
+          loadOp: 'clear',
           storeOp: 'store',
         },
       ],
@@ -239,7 +241,7 @@ Params:
     } else {
       renderPass.drawIndirect(indirectBuffer, indirectOffset);
     }
-    renderPass.endPass();
+    renderPass.end();
     t.queue.submit([commandEncoder.finish()]);
 
     // The bottom left area is filled

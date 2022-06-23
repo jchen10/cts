@@ -22,14 +22,14 @@ class F extends ValidationTest {
 
 export const g = makeTestGroup(F);
 
-g.test('indirect_buffer').
+g.test('indirect_buffer_state').
 desc(
 `
 Tests indirect buffer must be valid.
   `).
 
 paramsSubcasesOnly(kIndirectDrawTestParams.combine('state', kResourceStates)).
-fn(t => {
+fn((t) => {
   const { encoderType, indexed, state } = t.params;
   const pipeline = t.createNoOpRenderPipeline();
   const indirectBuffer = t.createBufferWithState(state, {
@@ -55,7 +55,31 @@ desc(
 'Tests draw(Indexed)Indirect cannot be called with an indirect buffer created from another device').
 
 paramsSubcasesOnly(kIndirectDrawTestParams.combine('mismatched', [true, false])).
-unimplemented();
+beforeAllSubcases((t) => {
+  t.selectMismatchedDeviceOrSkipTestCase(undefined);
+}).
+fn(async (t) => {
+  const { encoderType, indexed, mismatched } = t.params;
+
+  const device = mismatched ? t.mismatchedDevice : t.device;
+
+  const indirectBuffer = device.createBuffer({
+    size: 256,
+    usage: GPUBufferUsage.INDIRECT });
+
+  t.trackForCleanup(indirectBuffer);
+
+  const { encoder, validateFinish } = t.createEncoder(encoderType);
+  encoder.setPipeline(t.createNoOpRenderPipeline());
+
+  if (indexed) {
+    encoder.setIndexBuffer(t.makeIndexBuffer(), 'uint32');
+    encoder.drawIndexedIndirect(indirectBuffer, 0);
+  } else {
+    encoder.drawIndirect(indirectBuffer, 0);
+  }
+  validateFinish(!mismatched);
+});
 
 g.test('indirect_buffer_usage').
 desc(
@@ -70,7 +94,7 @@ GPUConst.BufferUsage.COPY_DST,
 GPUConst.BufferUsage.COPY_DST | GPUConst.BufferUsage.INDIRECT])).
 
 
-fn(t => {
+fn((t) => {
   const { encoderType, indexed, usage } = t.params;
   const indirectBuffer = t.device.createBuffer({
     size: 256,
@@ -96,7 +120,7 @@ Tests indirect offset must be a multiple of 4.
   `).
 
 paramsSubcasesOnly(kIndirectDrawTestParams.combine('indirectOffset', [0, 2, 4])).
-fn(t => {
+fn((t) => {
   const { encoderType, indexed, indirectOffset } = t.params;
   const pipeline = t.createNoOpRenderPipeline();
   const indirectBuffer = t.device.createBuffer({
@@ -138,7 +162,7 @@ Tests indirect draw calls with various indirect offsets and buffer sizes.
   `).
 
 paramsSubcasesOnly(
-kIndirectDrawTestParams.expandWithParams(p => {
+kIndirectDrawTestParams.expandWithParams((p) => {
   const indirectParamsSize = p.indexed ? 20 : 16;
   return [
   { indirectOffset: 0, bufferSize: 0, _valid: false },
@@ -156,7 +180,7 @@ kIndirectDrawTestParams.expandWithParams(p => {
 
 })).
 
-fn(t => {
+fn((t) => {
   const { encoderType, indexed, indirectOffset, bufferSize, _valid } = t.params;
   const pipeline = t.createNoOpRenderPipeline();
   const indirectBuffer = t.device.createBuffer({

@@ -37,7 +37,7 @@ combine('slotsToResolve', kSlotsToResolve).
 combine('resolveTargetBaseMipLevel', [0, 1]).
 combine('resolveTargetBaseArrayLayer', [0, 1])).
 
-fn(t => {
+fn((t) => {
   const targets = [];
   for (let i = 0; i < t.params.numColorAttachments; i++) {
     targets.push({ format: kFormat });
@@ -49,10 +49,11 @@ fn(t => {
   // well as a line between the portions that contain the midpoint color due to the multisample
   // resolve.
   const pipeline = t.device.createRenderPipeline({
+    layout: 'auto',
     vertex: {
       module: t.device.createShaderModule({
         code: `
-            @stage(vertex) fn main(
+            @vertex fn main(
               @builtin(vertex_index) VertexIndex : u32
               ) -> @builtin(position) vec4<f32> {
               var pos : array<vec2<f32>, 3> = array<vec2<f32>, 3>(
@@ -68,13 +69,13 @@ fn(t => {
       module: t.device.createShaderModule({
         code: `
             struct Output {
-              @location(0) fragColor0 : vec4<f32>;
-              @location(1) fragColor1 : vec4<f32>;
-              @location(2) fragColor2 : vec4<f32>;
-              @location(3) fragColor3 : vec4<f32>;
+              @location(0) fragColor0 : vec4<f32>,
+              @location(1) fragColor1 : vec4<f32>,
+              @location(2) fragColor2 : vec4<f32>,
+              @location(3) fragColor3 : vec4<f32>,
             };
 
-            @stage(fragment) fn main() -> Output {
+            @fragment fn main() -> Output {
               return Output(
                 vec4<f32>(1.0, 1.0, 1.0, 1.0),
                 vec4<f32>(1.0, 1.0, 1.0, 1.0),
@@ -133,7 +134,8 @@ fn(t => {
       // will be white and the bottom right half will be black.
       renderPassColorAttachments.push({
         view: colorAttachment.createView(),
-        loadValue: { r: 0.0, g: 0.0, b: 0.0, a: 0.0 },
+        clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 0.0 },
+        loadOp: 'clear',
         storeOp: t.params.storeOperation,
         resolveTarget: resolveTarget.createView({
           baseMipLevel: t.params.resolveTargetBaseMipLevel,
@@ -145,7 +147,8 @@ fn(t => {
     } else {
       renderPassColorAttachments.push({
         view: colorAttachment.createView(),
-        loadValue: { r: 0.0, g: 0.0, b: 0.0, a: 0.0 },
+        clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 0.0 },
+        loadOp: 'clear',
         storeOp: t.params.storeOperation });
 
     }
@@ -158,7 +161,7 @@ fn(t => {
 
   pass.setPipeline(pipeline);
   pass.draw(3);
-  pass.endPass();
+  pass.end();
   t.device.queue.submit([encoder.finish()]);
 
   // Verify the resolve targets contain the correct values.

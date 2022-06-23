@@ -7,7 +7,6 @@ TODO: make sure tests are complete.
 `;import { kUnitCaseParamsBuilder } from '../../../common/framework/params_builder.js';
 import { makeTestGroup } from '../../../common/framework/test_group.js';
 import {
-kMaxBindingsPerBindGroup,
 kShaderStages,
 kShaderStageCombinations,
 kTextureViewDimensions,
@@ -32,7 +31,7 @@ paramsSubcasesOnly([
 { bindings: [0, 1], _valid: true },
 { bindings: [0, 0], _valid: false }]).
 
-fn(async t => {
+fn(async (t) => {
   const { bindings, _valid } = t.params;
   const entries = [];
 
@@ -64,7 +63,7 @@ combine('visibility', kShaderStageCombinations).
 beginSubcases().
 combine('entry', allBindingEntries(false))).
 
-fn(async t => {
+fn(async (t) => {
   const { visibility, entry } = t.params;
   const info = bindingTypeInfo(entry);
 
@@ -83,7 +82,7 @@ paramsSubcasesOnly((u) =>
 u //
 .combine('viewDimension', [undefined, ...kTextureViewDimensions])).
 
-fn(async t => {
+fn(async (t) => {
   const { viewDimension } = t.params;
 
   const success = viewDimension === '2d' || viewDimension === undefined;
@@ -116,7 +115,7 @@ beginSubcases().
 combine('extraDynamicBuffers', [0, 1]).
 combine('staticBuffers', [0, 1])).
 
-fn(async t => {
+fn(async (t) => {
   const { type, extraDynamicBuffers, staticBuffers } = t.params;
   const info = bufferBindingTypeInfo({ type });
 
@@ -149,14 +148,14 @@ fn(async t => {
 });
 
 /**
-     * One bind group layout will be filled with kPerStageBindingLimit[...] of the type |type|.
-     * For each item in the array returned here, a case will be generated which tests a pipeline
-     * layout with one extra bind group layout with one extra binding. That extra binding will have:
-     *
-     *   - If extraTypeSame, any of the binding types which counts toward the same limit as |type|.
-     *     (i.e. 'storage-buffer' <-> 'readonly-storage-buffer').
-     *   - Otherwise, an arbitrary other type.
-     */
+ * One bind group layout will be filled with kPerStageBindingLimit[...] of the type |type|.
+ * For each item in the array returned here, a case will be generated which tests a pipeline
+ * layout with one extra bind group layout with one extra binding. That extra binding will have:
+ *
+ *   - If extraTypeSame, any of the binding types which counts toward the same limit as |type|.
+ *     (i.e. 'storage-buffer' <-> 'readonly-storage-buffer').
+ *   - Otherwise, an arbitrary other type.
+ */
 function* pickExtraBindingTypesForPerStage(entry, extraTypeSame) {
   if (extraTypeSame) {
     const info = bindingTypeInfo(entry);
@@ -175,13 +174,13 @@ const kMaxResourcesCases = kUnitCaseParamsBuilder.
 combine('maxedEntry', allBindingEntries(false)).
 beginSubcases().
 combine('maxedVisibility', kShaderStages).
-filter(p => (bindingTypeInfo(p.maxedEntry).validStages & p.maxedVisibility) !== 0).
-expand('extraEntry', p => [
+filter((p) => (bindingTypeInfo(p.maxedEntry).validStages & p.maxedVisibility) !== 0).
+expand('extraEntry', (p) => [
 ...pickExtraBindingTypesForPerStage(p.maxedEntry, true),
 ...pickExtraBindingTypesForPerStage(p.maxedEntry, false)]).
 
 combine('extraVisibility', kShaderStages).
-filter(p => (bindingTypeInfo(p.extraEntry).validStages & p.extraVisibility) !== 0);
+filter((p) => (bindingTypeInfo(p.extraEntry).validStages & p.extraVisibility) !== 0);
 
 // Should never fail unless kMaxBindingsPerBindGroup is exceeded, because the validation for
 // resources-of-type-per-stage is in pipeline layout creation.
@@ -196,10 +195,11 @@ desc(
     - TODO(#230): Update to enforce per-stage and per-pipeline-layout limits on BGLs as well.`).
 
 params(kMaxResourcesCases).
-fn(async t => {
+fn(async (t) => {
   const { maxedEntry, extraEntry, maxedVisibility, extraVisibility } = t.params;
   const maxedTypeInfo = bindingTypeInfo(maxedEntry);
   const maxedCount = maxedTypeInfo.perStageLimitClass.max;
+  const extraTypeInfo = bindingTypeInfo(extraEntry);
 
   const maxResourceBindings = [];
   for (let i = 0; i < maxedCount; i++) {
@@ -215,6 +215,7 @@ fn(async t => {
   // Control
   t.device.createBindGroupLayout(goodDescriptor);
 
+  // Add an entry counting towards the same limit. It should produce a validation error.
   const newDescriptor = clone(goodDescriptor);
   newDescriptor.entries.push({
     binding: maxedCount,
@@ -222,11 +223,13 @@ fn(async t => {
     ...extraEntry });
 
 
-  const shouldError = maxedCount >= kMaxBindingsPerBindGroup;
+  const newBindingCountsTowardSamePerStageLimit =
+  (maxedVisibility & extraVisibility) !== 0 &&
+  maxedTypeInfo.perStageLimitClass.class === extraTypeInfo.perStageLimitClass.class;
 
   t.expectValidationError(() => {
     t.device.createBindGroupLayout(newDescriptor);
-  }, shouldError);
+  }, newBindingCountsTowardSamePerStageLimit);
 });
 
 // One pipeline layout can have a maximum number of each type of binding *per stage* (which is
@@ -243,7 +246,7 @@ desc(
   `).
 
 params(kMaxResourcesCases).
-fn(async t => {
+fn(async (t) => {
   const { maxedEntry, extraEntry, maxedVisibility, extraVisibility } = t.params;
   const maxedTypeInfo = bindingTypeInfo(maxedEntry);
   const maxedCount = maxedTypeInfo.perStageLimitClass.max;
@@ -277,10 +280,9 @@ fn(async t => {
   const newBindingCountsTowardSamePerStageLimit =
   (maxedVisibility & extraVisibility) !== 0 &&
   maxedTypeInfo.perStageLimitClass.class === extraTypeInfo.perStageLimitClass.class;
-  const layoutExceedsPerStageLimit = newBindingCountsTowardSamePerStageLimit;
 
   t.expectValidationError(() => {
     t.device.createPipelineLayout({ bindGroupLayouts: [goodLayout, extraLayout] });
-  }, layoutExceedsPerStageLimit);
+  }, newBindingCountsTowardSamePerStageLimit);
 });
 //# sourceMappingURL=createBindGroupLayout.spec.js.map

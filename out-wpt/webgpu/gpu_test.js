@@ -1,10 +1,9 @@
 /**
  * AUTO-GENERATED - DO NOT EDIT. Source: https://github.com/gpuweb/cts
- **/ import { Fixture } from '../common/framework/fixture.js';
-import { attemptGarbageCollection } from '../common/util/collect_garbage.js';
+ **/ import { Fixture, SubcaseBatchState } from '../common/framework/fixture.js';
 import { assert, range, unreachable } from '../common/util/util.js';
 
-import { kTextureFormatInfo, kQueryTypeInfo } from './capability_info.js';
+import { kTextureFormatInfo, kQueryTypeInfo, resolvePerAspectFormat } from './capability_info.js';
 import { makeBufferWithContents } from './util/buffer.js';
 import {
   checkElementsEqual,
@@ -12,9 +11,10 @@ import {
   checkElementsFloat16Between,
 } from './util/check_contents.js';
 import { CommandBufferMaker } from './util/command_buffer_maker.js';
-import { DevicePool, TestOOMedShouldAttemptGC } from './util/device_pool.js';
+import { DevicePool } from './util/device_pool.js';
 import { align, roundDown } from './util/math.js';
-import { getTextureCopyLayout } from './util/texture/layout.js';
+import { makeTextureWithContents } from './util/texture.js';
+import { getTextureCopyLayout, getTextureSubCopyLayout } from './util/texture/layout.js';
 import { kTexelRepresentationInfo } from './util/texture/texel_data.js';
 
 const devicePool = new DevicePool();
@@ -26,6 +26,8 @@ const mismatchedDevicePool = new DevicePool();
 const kResourceStateValues = ['valid', 'invalid', 'destroyed'];
 
 export const kResourceStates = kResourceStateValues;
+
+/** Various "convenient" shorthands for GPUDeviceDescriptors for selectDevice functions. */
 
 export function initUncanonicalizedDeviceDescriptor(descriptor) {
   if (typeof descriptor === 'string') {
@@ -39,155 +41,55 @@ export function initUncanonicalizedDeviceDescriptor(descriptor) {
   }
 }
 
-/**
- * Base fixture for WebGPU tests.
- */
-export class GPUTest extends Fixture {
-  /** Must not be replaced once acquired. */
+export class GPUTestSubcaseBatchState extends SubcaseBatchState {
+  /** Provider for default device. */
 
-  // Some tests(e.g. Device mismatched validation) require another GPUDevice
-  // different from the default GPUDevice of GPUTest. It is only used to
-  //create device mismatched objects.
+  /** Provider for mismatched device. */
 
-  /** GPUDevice for the test to use. */
-  get device() {
-    assert(
-      this.provider !== undefined,
-      'No provider available right now; did you "await" selectDeviceOrSkipTestCase?'
-    );
-
-    if (!this.acquiredDevice) {
-      this.acquiredDevice = this.provider.acquire();
-    }
-    return this.acquiredDevice;
-  }
-
-  /** GPUDevice for tests requires another device from default one.
-   *  e.g. creating objects required creating mismatched objects required
-   * by device mismatched validation tests.
-   */
-  get mismatchedDevice() {
-    assert(
-      this.mismatchedProvider !== undefined,
-      'No provider available right now; did you "await" selectMismatchedDeviceOrSkipTestCase?'
-    );
-
-    if (!this.mismatchedAcquiredDevice) {
-      this.mismatchedAcquiredDevice = this.mismatchedProvider.acquire();
-    }
-    return this.mismatchedAcquiredDevice;
-  }
-
-  /**
-   * Create other device different with current test device, which could be got by `.mismatchedDevice`.
-   * A `descriptor` may be undefined, which returns a `default` mismatched device.
-   * If the request descriptor or feature name can't be supported, throws an exception to skip the entire test case.
-   */
-  async selectMismatchedDeviceOrSkipTestCase(descriptor) {
-    assert(
-      this.mismatchedProvider === undefined,
-      "Can't selectMismatchedDeviceOrSkipTestCase() multiple times"
-    );
-
-    this.mismatchedProvider =
-      descriptor === undefined
-        ? await mismatchedDevicePool.reserve()
-        : await mismatchedDevicePool.reserve(initUncanonicalizedDeviceDescriptor(descriptor));
-
-    this.mismatchedAcquiredDevice = this.mismatchedProvider.acquire();
-  }
-
-  /** GPUQueue for the test to use. (Same as `t.device.queue`.) */
-  get queue() {
-    return this.device.queue;
-  }
-
-  async init() {
-    await super.init();
-
-    this.provider = await devicePool.reserve();
+  async postInit() {
+    // Skip all subcases if there's no device.
+    await this.acquireProvider();
   }
 
   async finalize() {
     await super.finalize();
 
-    if (this.provider) {
-      let threw;
-      {
-        const provider = this.provider;
-        this.provider = undefined;
-        try {
-          await devicePool.release(provider);
-        } catch (ex) {
-          threw = ex;
-        }
-      }
-      // The GPUDevice and GPUQueue should now have no outstanding references.
-
-      if (threw) {
-        if (threw instanceof TestOOMedShouldAttemptGC) {
-          // Try to clean up, in case there are stray GPU resources in need of collection.
-          await attemptGarbageCollection();
-        }
-        throw threw;
-      }
-    }
-
-    if (this.mismatchedProvider) {
-      // MAINTENANCE_TODO(kainino0x): Deduplicate this with code in GPUTest.finalize
-      let threw;
-      {
-        const provider = this.mismatchedProvider;
-        this.mismatchedProvider = undefined;
-        try {
-          await mismatchedDevicePool.release(provider);
-        } catch (ex) {
-          threw = ex;
-        }
-      }
-
-      if (threw) {
-        if (threw instanceof TestOOMedShouldAttemptGC) {
-          // Try to clean up, in case there are stray GPU resources in need of collection.
-          await attemptGarbageCollection();
-        }
-        throw threw;
-      }
-    }
+    // Ensure devicePool.release is called for both providers even if one rejects.
+    await Promise.all([
+      this.provider?.then(x => devicePool.release(x)),
+      this.mismatchedProvider?.then(x => devicePool.release(x)),
+    ]);
   }
 
-  /**
-   * When a GPUTest test accesses `.device` for the first time, a "default" GPUDevice
-   * (descriptor = `undefined`) is provided by default.
-   * However, some tests or cases need particular nonGuaranteedFeatures to be enabled.
-   * Call this function with a descriptor or feature name (or `undefined`) to select a
-   * GPUDevice with matching capabilities.
-   *
-   * If the request descriptor can't be supported, throws an exception to skip the entire test case.
-   */
-  async selectDeviceOrSkipTestCase(descriptor) {
-    if (descriptor === undefined) return;
-
+  /** @internal MAINTENANCE_TODO: Make this not visible to test code? */
+  acquireProvider() {
+    if (this.provider === undefined) {
+      this.selectDeviceOrSkipTestCase(undefined);
+    }
     assert(this.provider !== undefined);
-    // Make sure the device isn't replaced after it's been retrieved once.
-    assert(
-      !this.acquiredDevice,
-      "Can't selectDeviceOrSkipTestCase() after the device has been used"
-    );
-
-    const oldProvider = this.provider;
-    this.provider = undefined;
-    await devicePool.release(oldProvider);
-
-    this.provider = await devicePool.reserve(initUncanonicalizedDeviceDescriptor(descriptor));
-    this.acquiredDevice = this.provider.acquire();
+    return this.provider;
   }
 
   /**
-   * Create device with texture format(s) required feature(s).
-   * If the device creation fails, then skip the test for that format(s).
+   * Some tests or cases need particular feature flags or limits to be enabled.
+   * Call this function with a descriptor or feature name (or `undefined`) to select a
+   * GPUDevice with matching capabilities. If this isn't called, a default device is provided.
+   *
+   * If the request isn't supported, throws a SkipTestCase exception to skip the entire test case.
    */
-  async selectDeviceForTextureFormatOrSkipTestCase(formats) {
+  selectDeviceOrSkipTestCase(descriptor) {
+    assert(this.provider === undefined, "Can't selectDeviceOrSkipTestCase() multiple times");
+    this.provider = devicePool.acquire(initUncanonicalizedDeviceDescriptor(descriptor));
+    // Suppress uncaught promise rejection (we'll catch it later).
+    this.provider.catch(() => {});
+  }
+
+  /**
+   * Convenience function for {@link selectDeviceOrSkipTestCase}.
+   * Select a device with the features required by these texture format(s).
+   * If the device creation fails, then skip the test case.
+   */
+  selectDeviceForTextureFormatOrSkipTestCase(formats) {
     if (!Array.isArray(formats)) {
       formats = [formats];
     }
@@ -198,19 +100,90 @@ export class GPUTest extends Fixture {
       }
     }
 
-    await this.selectDeviceOrSkipTestCase(Array.from(features));
+    this.selectDeviceOrSkipTestCase(Array.from(features));
   }
 
   /**
-   * Create device with query type(s) required feature(s).
-   * If the device creation fails, then skip the test for that type(s).
+   * Convenience function for {@link selectDeviceOrSkipTestCase}.
+   * Select a device with the features required by these query type(s).
+   * If the device creation fails, then skip the test case.
    */
-  async selectDeviceForQueryTypeOrSkipTestCase(types) {
+  selectDeviceForQueryTypeOrSkipTestCase(types) {
     if (!Array.isArray(types)) {
       types = [types];
     }
     const features = types.map(t => kQueryTypeInfo[t].feature);
-    await this.selectDeviceOrSkipTestCase(features);
+    this.selectDeviceOrSkipTestCase(features);
+  }
+
+  /** @internal MAINTENANCE_TODO: Make this not visible to test code? */
+  acquireMismatchedProvider() {
+    return this.mismatchedProvider;
+  }
+
+  /**
+   * Some tests need a second device which is different from the first.
+   * This requests a second device so it will be available during the test. If it is not called,
+   * no second device will be available.
+   *
+   * If the request isn't supported, throws a SkipTestCase exception to skip the entire test case.
+   */
+  selectMismatchedDeviceOrSkipTestCase(descriptor) {
+    assert(
+      this.mismatchedProvider === undefined,
+      "Can't selectMismatchedDeviceOrSkipTestCase() multiple times"
+    );
+
+    this.mismatchedProvider = mismatchedDevicePool.acquire(
+      initUncanonicalizedDeviceDescriptor(descriptor)
+    );
+
+    // Suppress uncaught promise rejection (we'll catch it later).
+    this.mismatchedProvider.catch(() => {});
+  }
+}
+
+/**
+ * Base fixture for WebGPU tests.
+ */
+export class GPUTest extends Fixture {
+  static MakeSharedState(params) {
+    return new GPUTestSubcaseBatchState(params);
+  }
+
+  // Should never be undefined in a test. If it is, init() must not have run/finished.
+
+  async init() {
+    await super.init();
+
+    this.provider = await this.sharedState.acquireProvider();
+    this.mismatchedProvider = await this.sharedState.acquireMismatchedProvider();
+  }
+
+  /**
+   * GPUDevice for the test to use.
+   */
+  get device() {
+    assert(this.provider !== undefined, 'internal error: GPUDevice missing?');
+    return this.provider.device;
+  }
+
+  /**
+   * GPUDevice for tests requiring a second device different from the default one,
+   * e.g. for creating objects for by device_mismatch validation tests.
+   */
+  get mismatchedDevice() {
+    assert(
+      this.mismatchedProvider !== undefined,
+      'selectMismatchedDeviceOrSkipTestCase was not called in beforeAllSubcases'
+    );
+
+    return this.mismatchedProvider.device;
+  }
+
+  /** GPUQueue for the test to use. (Same as `t.device.queue`.) */
+  get queue() {
+    return this.device.queue;
   }
 
   /** Snapshot a GPUBuffer's contents, returning a new GPUBuffer with the `MAP_READ` usage. */
@@ -415,7 +388,7 @@ export class GPUTest extends Fixture {
     @group(0) @binding(0) var<storage, read> expected: Buffer;
     @group(0) @binding(1) var<storage, read> in: Buffer;
     @group(0) @binding(2) var<storage, read_write> out: Buffer;
-    @stage(compute) @workgroup_size(1) fn reduce(
+    @compute @workgroup_size(1) fn reduce(
         @builtin(global_invocation_id) id: vec3<u32>) {
       let rowBaseIndex = id.x * ${bytesPerRow / 4}u;
       let readSize = ${expectedDataSize / 4}u;
@@ -433,6 +406,7 @@ export class GPUTest extends Fixture {
     `;
 
     const pipeline = this.device.createComputePipeline({
+      layout: 'auto',
       compute: {
         module: this.device.createShaderModule({ code: reducer }),
         entryPoint: 'reduce',
@@ -453,8 +427,8 @@ export class GPUTest extends Fixture {
     const pass = commandEncoder.beginComputePass();
     pass.setPipeline(pipeline);
     pass.setBindGroup(0, bindGroup);
-    pass.dispatch(numRows);
-    pass.endPass();
+    pass.dispatchWorkgroups(numRows);
+    pass.end();
     this.device.queue.submit([commandEncoder.finish()]);
 
     const expectedResults = new Array(numRows).fill(1);
@@ -467,6 +441,7 @@ export class GPUTest extends Fixture {
    * Expect a whole GPUTexture to have the single provided color.
    */
   expectSingleColor(src, format, { size, exp, dimension = '2d', slice = 0, layout }) {
+    format = resolvePerAspectFormat(format, layout?.aspect);
     const { byteLength, minBytesPerRow, bytesPerRow, rowsPerImage, mipSize } = getTextureCopyLayout(
       format,
       dimension,
@@ -486,7 +461,13 @@ export class GPUTest extends Fixture {
 
     const commandEncoder = this.device.createCommandEncoder();
     commandEncoder.copyTextureToBuffer(
-      { texture: src, mipLevel: layout?.mipLevel, origin: { x: 0, y: 0, z: slice } },
+      {
+        texture: src,
+        mipLevel: layout?.mipLevel,
+        origin: { x: 0, y: 0, z: slice },
+        aspect: layout?.aspect,
+      },
+
       { buffer, bytesPerRow, rowsPerImage },
       mipSize
     );
@@ -503,10 +484,9 @@ export class GPUTest extends Fixture {
 
   /** Return a GPUBuffer that data are going to be written into. */
   readSinglePixelFrom2DTexture(src, format, { x, y }, { slice = 0, layout }) {
-    const { byteLength, bytesPerRow, rowsPerImage, mipSize } = getTextureCopyLayout(
+    const { byteLength, bytesPerRow, rowsPerImage } = getTextureSubCopyLayout(
       format,
-      '2d',
-      [1, 1, 1],
+      [1, 1],
       layout
     );
 
@@ -521,7 +501,7 @@ export class GPUTest extends Fixture {
     commandEncoder.copyTextureToBuffer(
       { texture: src, mipLevel: layout?.mipLevel, origin: { x, y, z: slice } },
       { buffer, bytesPerRow, rowsPerImage },
-      mipSize
+      [1, 1]
     );
 
     this.queue.submit([commandEncoder.finish()]);
@@ -532,8 +512,8 @@ export class GPUTest extends Fixture {
   /**
    * Expect a single pixel of a 2D texture to have a particular byte representation.
    *
-   * MAINENANCE_TODO: Add check for values of depth/stencil, probably through sampling of shader
-   * MAINENANCE_TODO: Can refactor this and expectSingleColor to use a similar base expect
+   * MAINTENANCE_TODO: Add check for values of depth/stencil, probably through sampling of shader
+   * MAINTENANCE_TODO: Can refactor this and expectSingleColor to use a similar base expect
    */
   expectSinglePixelIn2DTexture(
     src,
@@ -686,12 +666,27 @@ export class GPUTest extends Fixture {
   }
 
   /**
+   * Expects that the device should be lost for a particular reason at the teardown of the test.
+   */
+  expectDeviceLost(reason) {
+    assert(this.provider !== undefined, 'internal error: GPUDevice missing?');
+    this.provider.expectDeviceLost(reason);
+  }
+
+  /**
    * Create a GPUBuffer with the specified contents and usage.
    *
    * MAINTENANCE_TODO: Several call sites would be simplified if this took ArrayBuffer as well.
    */
   makeBufferWithContents(dataArray, usage) {
     return this.trackForCleanup(makeBufferWithContents(this.device, dataArray, usage));
+  }
+
+  /**
+   * Creates a texture with the contents of a TexelView.
+   */
+  makeTextureWithContents(texelView, desc) {
+    return this.trackForCleanup(makeTextureWithContents(this.device, texelView, desc));
   }
 
   /**
@@ -784,30 +779,27 @@ export class GPUTest extends Fixture {
       case 'non-pass': {
         const encoder = this.device.createCommandEncoder();
 
-        return new CommandBufferMaker(this, encoder, shouldSucceed =>
-          this.expectGPUError('validation', () => encoder.finish(), !shouldSucceed)
-        );
+        return new CommandBufferMaker(this, encoder, () => {
+          return encoder.finish();
+        });
       }
       case 'render bundle': {
         const device = this.device;
         const rbEncoder = device.createRenderBundleEncoder(fullAttachmentInfo);
         const pass = this.createEncoder('render pass', { attachmentInfo });
 
-        return new CommandBufferMaker(this, rbEncoder, shouldSucceed => {
-          // If !shouldSucceed, the resulting bundle should be invalid.
-          const rb = this.expectGPUError('validation', () => rbEncoder.finish(), !shouldSucceed);
-          pass.encoder.executeBundles([rb]);
-          // Then, the pass should also be invalid if the bundle was invalid.
-          return pass.validateFinish(shouldSucceed);
+        return new CommandBufferMaker(this, rbEncoder, () => {
+          pass.encoder.executeBundles([rbEncoder.finish()]);
+          return pass.finish();
         });
       }
       case 'compute pass': {
         const commandEncoder = this.device.createCommandEncoder();
         const encoder = commandEncoder.beginComputePass();
 
-        return new CommandBufferMaker(this, encoder, shouldSucceed => {
-          encoder.endPass();
-          return this.expectGPUError('validation', () => commandEncoder.finish(), !shouldSucceed);
+        return new CommandBufferMaker(this, encoder, () => {
+          encoder.end();
+          return commandEncoder.finish();
         });
       }
       case 'render pass': {
@@ -821,31 +813,52 @@ export class GPUTest extends Fixture {
             })
           ).createView();
 
-        const passDesc = {
-          colorAttachments: Array.from(fullAttachmentInfo.colorFormats, format => ({
-            view: makeAttachmentView(format),
-            loadValue: [0, 0, 0, 0],
-            storeOp: 'store',
-          })),
+        let depthStencilAttachment = undefined;
+        if (fullAttachmentInfo.depthStencilFormat !== undefined) {
+          depthStencilAttachment = {
+            view: makeAttachmentView(fullAttachmentInfo.depthStencilFormat),
+            depthReadOnly: fullAttachmentInfo.depthReadOnly,
+            stencilReadOnly: fullAttachmentInfo.stencilReadOnly,
+          };
 
-          depthStencilAttachment:
-            fullAttachmentInfo.depthStencilFormat !== undefined
+          if (
+            kTextureFormatInfo[fullAttachmentInfo.depthStencilFormat].depth &&
+            !fullAttachmentInfo.depthReadOnly
+          ) {
+            depthStencilAttachment.depthClearValue = 0;
+            depthStencilAttachment.depthLoadOp = 'clear';
+            depthStencilAttachment.depthStoreOp = 'discard';
+          }
+          if (
+            kTextureFormatInfo[fullAttachmentInfo.depthStencilFormat].stencil &&
+            !fullAttachmentInfo.stencilReadOnly
+          ) {
+            depthStencilAttachment.stencilClearValue = 1;
+            depthStencilAttachment.stencilLoadOp = 'clear';
+            depthStencilAttachment.stencilStoreOp = 'discard';
+          }
+        }
+        const passDesc = {
+          colorAttachments: Array.from(fullAttachmentInfo.colorFormats, format =>
+            format
               ? {
-                  view: makeAttachmentView(fullAttachmentInfo.depthStencilFormat),
-                  depthLoadValue: 0,
-                  depthStoreOp: 'discard',
-                  stencilLoadValue: 1,
-                  stencilStoreOp: 'discard',
+                  view: makeAttachmentView(format),
+                  clearValue: [0, 0, 0, 0],
+                  loadOp: 'clear',
+                  storeOp: 'store',
                 }
-              : undefined,
+              : null
+          ),
+
+          depthStencilAttachment,
           occlusionQuerySet,
         };
 
         const commandEncoder = this.device.createCommandEncoder();
         const encoder = commandEncoder.beginRenderPass(passDesc);
-        return new CommandBufferMaker(this, encoder, shouldSucceed => {
-          encoder.endPass();
-          return this.expectGPUError('validation', () => commandEncoder.finish(), !shouldSucceed);
+        return new CommandBufferMaker(this, encoder, () => {
+          encoder.end();
+          return commandEncoder.finish();
         });
       }
     }

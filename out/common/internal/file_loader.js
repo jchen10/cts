@@ -19,25 +19,63 @@ import { loadTreeForQuery } from './tree.js';
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // Base class for DefaultTestFileLoader and FakeTestFileLoader.
-export class TestFileLoader {
+export class TestFileLoader extends EventTarget {
 
 
 
   importSpecFile(suite, path) {
-    return this.import(`${suite}/${path.join('/')}.spec.js`);
+    const url = `${suite}/${path.join('/')}.spec.js`;
+    this.dispatchEvent(
+    new MessageEvent('import', { data: { url } }));
+
+    return this.import(url);
   }
 
   async loadTree(query, subqueriesToExpand = []) {
-    return loadTreeForQuery(
+    const tree = await loadTreeForQuery(
     this,
     query,
-    subqueriesToExpand.map(s => {
+    subqueriesToExpand.map((s) => {
       const q = parseQuery(s);
       assert(q.level >= 2, () => `subqueriesToExpand entries should not be multi-file:\n  ${q}`);
       return q;
     }));
 
+    this.dispatchEvent(new MessageEvent('finish'));
+    return tree;
   }
 
   async loadCases(query) {

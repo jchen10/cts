@@ -64,7 +64,7 @@ const kTestTypes = [
 
 g.test('stage_inout').
 desc(
-`Test that each @builtin]] attribute is validated against the required stage and in/out usage for that built-in variable.`).
+`Test that each @builtin attribute is validated against the required stage and in/out usage for that built-in variable.`).
 
 params((u) =>
 u.
@@ -74,7 +74,7 @@ combine('target_stage', ['vertex', 'fragment', 'compute']).
 combine('target_io', ['in', 'out']).
 beginSubcases()).
 
-fn(t => {
+fn((t) => {
   const code = generateShader({
     attribute: `@builtin(${t.params.name})`,
     type: t.params.type,
@@ -96,7 +96,7 @@ fn(t => {
 
 g.test('type').
 desc(
-`Test that each @builtin]] attribute is validated against the required type of that built-in variable.`).
+`Test that each @builtin attribute is validated against the required type of that built-in variable.`).
 
 params((u) =>
 u.
@@ -105,13 +105,13 @@ combine('use_struct', [true, false]).
 combine('target_type', kTestTypes).
 beginSubcases()).
 
-fn(t => {
+fn((t) => {
   let code = '';
 
   if (t.params.target_type === 'MyStruct') {
     // Generate a struct that contains the correct built-in type.
     code += 'struct MyStruct {\n';
-    code += `  value : ${t.params.type};\n`;
+    code += `  value : ${t.params.type}\n`;
     code += '};\n\n';
   }
 
@@ -142,14 +142,14 @@ combine('target_stage', ['fragment', '']).
 combine('target_io', ['in', 'out']).
 beginSubcases()).
 
-fn(t => {
+fn((t) => {
   // Generate a struct that contains a sample_mask builtin, nested inside another struct.
   let code = `
     struct Inner {
-      @builtin(sample_mask) value : u32;
+      @builtin(sample_mask) value : u32
     };
     struct Outer {
-      inner : Inner;
+      inner : Inner
     };`;
 
   code += generateShader({
@@ -179,7 +179,7 @@ u
 combine('second', ['p2', 's1b', 's2b', 'rb']).
 beginSubcases()).
 
-fn(t => {
+fn((t) => {
   const p1 =
   t.params.first === 'p1' ? '@builtin(sample_mask)' : '@location(1) @interpolate(flat)';
   const p2 =
@@ -198,18 +198,18 @@ fn(t => {
   t.params.second === 'rb' ? '@builtin(sample_mask)' : '@location(2) @interpolate(flat)';
   const code = `
     struct S1 {
-      ${s1a} a : u32;
-      ${s1b} b : u32;
+      ${s1a} a : u32,
+      ${s1b} b : u32,
     };
     struct S2 {
-      ${s2a} a : u32;
-      ${s2b} b : u32;
+      ${s2a} a : u32,
+      ${s2b} b : u32,
     };
     struct R {
-      ${ra} a : u32;
-      ${rb} b : u32;
+      ${ra} a : u32,
+      ${rb} b : u32,
     };
-    @stage(fragment)
+    @fragment
     fn main(${p1} p1 : u32,
             ${p2} p2 : u32,
             s1 : S1,
@@ -235,13 +235,13 @@ combine('use_struct', [true, false]).
 combine('attribute', ['@builtin(position)', '@location(0)']).
 beginSubcases()).
 
-fn(t => {
+fn((t) => {
   const code = `
     struct S {
-      ${t.params.attribute} value : vec4<f32>;
+      ${t.params.attribute} value : vec4<f32>
     };
 
-    @stage(vertex)
+    @vertex
     fn main() -> ${t.params.use_struct ? 'S' : `${t.params.attribute} vec4<f32>`} {
       return ${t.params.use_struct ? 'S' : 'vec4<f32>'}();
     }

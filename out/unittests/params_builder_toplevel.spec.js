@@ -13,26 +13,26 @@ import { UnitTest } from './unit_test.js';
 export const g = makeTestGroup(TestGroupTest);
 
 g.test('combine_none,arg_unit').
-params(u => u.combineWithParams([])).
-fn(t => {
+params((u) => u.combineWithParams([])).
+fn((t) => {
   t.fail("this test shouldn't run");
 });
 
 g.test('combine_none,arg_ignored').
 params(() => kUnitCaseParamsBuilder.combineWithParams([])).
-fn(t => {
+fn((t) => {
   t.fail("this test shouldn't run");
 });
 
 g.test('combine_none,plain_builder').
 params(kUnitCaseParamsBuilder.combineWithParams([])).
-fn(t => {
+fn((t) => {
   t.fail("this test shouldn't run");
 });
 
 g.test('combine_none,plain_array').
 paramsSimple([]).
-fn(t => {
+fn((t) => {
   t.fail("this test shouldn't run");
 });
 
@@ -41,7 +41,7 @@ params((u) =>
 u //
 .combineWithParams([{ x: 1 }])).
 
-fn(t => {
+fn((t) => {
   t.expect(t.params.x === 1);
 });
 
@@ -50,7 +50,7 @@ paramsSubcasesOnly((u) =>
 u //
 .combineWithParams([{ x: 1 }])).
 
-fn(t => {
+fn((t) => {
   t.expect(t.params.x === 1);
 });
 
@@ -61,9 +61,9 @@ combineWithParams([
 { a: true, x: 1 }, //
 { a: false, y: 2 }]).
 
-filter(p => p.a)).
+filter((p) => p.a)).
 
-fn(t => {
+fn((t) => {
   t.expect(t.params.a);
 });
 
@@ -74,30 +74,30 @@ combineWithParams([
 { a: true, x: 1 }, //
 { a: false, y: 2 }]).
 
-unless(p => p.a)).
+unless((p) => p.a)).
 
-fn(t => {
+fn((t) => {
   t.expect(!t.params.a);
 });
 
-g.test('generator').fn(t0 => {
+g.test('generator').fn((t0) => {
   const g = makeTestGroupForUnitTesting(UnitTest);
 
   const ran = [];
 
   g.test('generator').
   params((u) =>
-  u.combineWithParams(
-  function* () {
-    for (let x = 0; x < 3; ++x) {
-      for (let y = 0; y < 2; ++y) {
-        yield { x, y };
+  u.combineWithParams({
+    *[Symbol.iterator]() {
+      for (let x = 0; x < 3; ++x) {
+        for (let y = 0; y < 2; ++y) {
+          yield { x, y };
+        }
       }
-    }
-  }())).
+    } })).
 
 
-  fn(t => {
+  fn((t) => {
     ran.push(t.params);
   });
 

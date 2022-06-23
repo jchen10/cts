@@ -30,15 +30,15 @@ g.test('shared_with_buffer')
     // attributes, and also layout attributes for the storage buffer.
     const wgsl = `
       struct S {
-        /* byte offset:  0 */ @size(32)  @builtin(workgroup_id) group_id : vec3<u32>;
-        /* byte offset: 32 */            @builtin(local_invocation_index) local_index : u32;
-        /* byte offset: 64 */ @align(64) @builtin(num_workgroups) numGroups : vec3<u32>;
+        /* byte offset:  0 */ @size(32)  @builtin(workgroup_id) group_id : vec3<u32>,
+        /* byte offset: 32 */            @builtin(local_invocation_index) local_index : u32,
+        /* byte offset: 64 */ @align(64) @builtin(num_workgroups) numGroups : vec3<u32>,
       };
 
       @group(0) @binding(0)
       var<storage, read_write> outputs : S;
 
-      @stage(compute) @workgroup_size(${wgsize[0]}, ${wgsize[1]}, ${wgsize[2]})
+      @compute @workgroup_size(${wgsize[0]}, ${wgsize[1]}, ${wgsize[2]})
       fn main(inputs : S) {
         if (inputs.group_id.x == ${targetGroup[0]}u &&
             inputs.group_id.y == ${targetGroup[1]}u &&
@@ -50,6 +50,7 @@ g.test('shared_with_buffer')
     `;
 
     const pipeline = t.device.createComputePipeline({
+      layout: 'auto',
       compute: {
         module: t.device.createShaderModule({ code: wgsl }),
         entryPoint: 'main',
@@ -73,8 +74,8 @@ g.test('shared_with_buffer')
     const pass = encoder.beginComputePass();
     pass.setPipeline(pipeline);
     pass.setBindGroup(0, bindGroup);
-    pass.dispatch(numGroups[0], numGroups[1], numGroups[2]);
-    pass.endPass();
+    pass.dispatchWorkgroups(numGroups[0], numGroups[1], numGroups[2]);
+    pass.end();
     t.queue.submit([encoder.finish()]);
 
     // Check the output values.
@@ -120,8 +121,8 @@ g.test('shared_between_stages')
     const size = [31, 31];
     const wgsl = `
       struct Interface {
-        @builtin(position) position : vec4<f32>;
-        @location(0) color : f32;
+        @builtin(position) position : vec4<f32>,
+        @location(0) color : f32,
       };
 
       var<private> vertices : array<vec2<f32>, 3> = array<vec2<f32>, 3>(
@@ -130,12 +131,12 @@ g.test('shared_between_stages')
         vec2<f32>( 0.7, -0.7),
       );
 
-      @stage(vertex)
+      @vertex
       fn vert_main(@builtin(vertex_index) index : u32) -> Interface {
         return Interface(vec4<f32>(vertices[index], 0.0, 1.0), 1.0);
       }
 
-      @stage(fragment)
+      @fragment
       fn frag_main(inputs : Interface) -> @location(0) vec4<f32> {
         // Toggle red vs green based on the x position.
         var color = vec4<f32>(0.0, 0.0, 0.0, 1.0);
@@ -151,6 +152,7 @@ g.test('shared_between_stages')
     // Set up the render pipeline.
     const module = t.device.createShaderModule({ code: wgsl });
     const pipeline = t.device.createRenderPipeline({
+      layout: 'auto',
       vertex: {
         module,
         entryPoint: 'vert_main',
@@ -179,7 +181,8 @@ g.test('shared_between_stages')
       colorAttachments: [
         {
           view: renderTarget.createView(),
-          loadValue: [0, 0, 0, 0],
+          clearValue: [0, 0, 0, 0],
+          loadOp: 'clear',
           storeOp: 'store',
         },
       ],
@@ -187,7 +190,7 @@ g.test('shared_between_stages')
 
     pass.setPipeline(pipeline);
     pass.draw(3);
-    pass.endPass();
+    pass.end();
     t.queue.submit([encoder.finish()]);
 
     // Test a few points to make sure we rendered a half-red/half-green triangle.
@@ -238,12 +241,12 @@ g.test('shared_with_non_entry_point_function')
     // functions.
     const wgsl = `
       struct Inputs {
-        @builtin(vertex_index) index : u32;
-        @location(0) color : vec4<f32>;
+        @builtin(vertex_index) index : u32,
+        @location(0) color : vec4<f32>,
       };
       struct Outputs {
-        @builtin(position) position : vec4<f32>;
-        @location(0) color : vec4<f32>;
+        @builtin(position) position : vec4<f32>,
+        @location(0) color : vec4<f32>,
       };
 
       var<private> vertices : array<vec2<f32>, 3> = array<vec2<f32>, 3>(
@@ -259,12 +262,12 @@ g.test('shared_with_non_entry_point_function')
         return out;
       }
 
-      @stage(vertex)
+      @vertex
       fn vert_main(inputs : Inputs) -> Outputs {
         return process(inputs);
       }
 
-      @stage(fragment)
+      @fragment
       fn frag_main(@location(0) color : vec4<f32>) -> @location(0) vec4<f32> {
         return color;
       }
@@ -273,6 +276,7 @@ g.test('shared_with_non_entry_point_function')
     // Set up the render pipeline.
     const module = t.device.createShaderModule({ code: wgsl });
     const pipeline = t.device.createRenderPipeline({
+      layout: 'auto',
       vertex: {
         module,
         entryPoint: 'vert_main',
@@ -320,7 +324,8 @@ g.test('shared_with_non_entry_point_function')
       colorAttachments: [
         {
           view: renderTarget.createView(),
-          loadValue: [0, 0, 0, 0],
+          clearValue: [0, 0, 0, 0],
+          loadOp: 'clear',
           storeOp: 'store',
         },
       ],
@@ -329,7 +334,7 @@ g.test('shared_with_non_entry_point_function')
     pass.setPipeline(pipeline);
     pass.setVertexBuffer(0, vertexBuffer);
     pass.draw(3);
-    pass.endPass();
+    pass.end();
     t.queue.submit([encoder.finish()]);
 
     // Test a few points to make sure we rendered a red triangle.

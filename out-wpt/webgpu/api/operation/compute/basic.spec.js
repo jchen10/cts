@@ -4,16 +4,16 @@
 Basic command buffer compute tests.
 `;
 import { makeTestGroup } from '../../../../common/framework/test_group.js';
-import { DefaultLimits } from '../../../constants.js';
+import { kLimitInfo } from '../../../capability_info.js';
 import { GPUTest } from '../../../gpu_test.js';
 import { checkElementsEqualGenerated } from '../../../util/check_contents.js';
 
 export const g = makeTestGroup(GPUTest);
 
 const kMaxComputeWorkgroupSize = [
-  DefaultLimits.maxComputeWorkgroupSizeX,
-  DefaultLimits.maxComputeWorkgroupSizeY,
-  DefaultLimits.maxComputeWorkgroupSizeZ,
+  kLimitInfo.maxComputeWorkgroupSizeX.default,
+  kLimitInfo.maxComputeWorkgroupSizeY.default,
+  kLimitInfo.maxComputeWorkgroupSizeZ.default,
 ];
 
 g.test('memcpy').fn(async t => {
@@ -27,17 +27,18 @@ g.test('memcpy').fn(async t => {
   });
 
   const pipeline = t.device.createComputePipeline({
+    layout: 'auto',
     compute: {
       module: t.device.createShaderModule({
         code: `
           struct Data {
-              value : u32;
+            value : u32
           };
 
           @group(0) @binding(0) var<storage, read> src : Data;
           @group(0) @binding(1) var<storage, read_write> dst : Data;
 
-          @stage(compute) @workgroup_size(1) fn main() {
+          @compute @workgroup_size(1) fn main() {
             dst.value = src.value;
             return;
           }
@@ -61,8 +62,8 @@ g.test('memcpy').fn(async t => {
   const pass = encoder.beginComputePass();
   pass.setPipeline(pipeline);
   pass.setBindGroup(0, bg);
-  pass.dispatch(1);
-  pass.endPass();
+  pass.dispatchWorkgroups(1);
+  pass.end();
   t.device.queue.submit([encoder.finish()]);
 
   t.expectGPUBufferValuesEqual(dst, data);
@@ -79,7 +80,7 @@ g.test('large_dispatch')
         315,
         628,
         2179,
-        DefaultLimits.maxComputeWorkgroupsPerDimension,
+        kLimitInfo.maxComputeWorkgroupsPerDimension.default,
       ])
 
       // Test some reasonable workgroup sizes.
@@ -108,16 +109,17 @@ g.test('large_dispatch')
     const wgSizes = [1, 1, 1];
     wgSizes[t.params.largeDimension] = t.params.workgroupSize;
     const pipeline = t.device.createComputePipeline({
+      layout: 'auto',
       compute: {
         module: t.device.createShaderModule({
           code: `
             struct OutputBuffer {
-              value : array<u32>;
+              value : array<u32>
             };
 
             @group(0) @binding(0) var<storage, read_write> dst : OutputBuffer;
 
-            @stage(compute) @workgroup_size(${wgSizes[0]}, ${wgSizes[1]}, ${wgSizes[2]})
+            @compute @workgroup_size(${wgSizes[0]}, ${wgSizes[1]}, ${wgSizes[2]})
             fn main(
               @builtin(global_invocation_id) GlobalInvocationID : vec3<u32>
             ) {
@@ -153,8 +155,8 @@ g.test('large_dispatch')
     const pass = encoder.beginComputePass();
     pass.setPipeline(pipeline);
     pass.setBindGroup(0, bg);
-    pass.dispatch(dims[0], dims[1], dims[2]);
-    pass.endPass();
+    pass.dispatchWorkgroups(dims[0], dims[1], dims[2]);
+    pass.end();
     t.device.queue.submit([encoder.finish()]);
 
     t.expectGPUBufferValuesPassCheck(dst, a => checkElementsEqualGenerated(a, i => val), {

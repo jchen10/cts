@@ -27,7 +27,7 @@ import {
   kTextureDimensions,
 } from '../../../capability_info.js';
 import { GPUConst } from '../../../constants.js';
-import { GPUTest } from '../../../gpu_test.js';
+import { GPUTest, GPUTestSubcaseBatchState } from '../../../gpu_test.js';
 import { virtualMipSize } from '../../../util/texture/base.js';
 import { createTextureUploadBuffer } from '../../../util/texture/layout.js';
 import { BeginEndRange, SubresourceRange } from '../../../util/texture/subresource.js';
@@ -184,8 +184,8 @@ export class TextureZeroInitTest extends GPUTest {
   readonly stateToTexelComponents: { [k in InitializedState]: PerTexelComponent<number> };
 
   private p: TextureZeroParams;
-  constructor(rec: TestCaseRecorder, params: TestParams) {
-    super(rec, params);
+  constructor(sharedState: GPUTestSubcaseBatchState, rec: TestCaseRecorder, params: TestParams) {
+    super(sharedState, rec, params);
     this.p = params as TextureZeroParams;
 
     const stateToTexelComponents = (state: InitializedState) => {
@@ -298,8 +298,10 @@ export class TextureZeroInitTest extends GPUTest {
     subresourceRange?: SubresourceRange
   ): void {
     const commandEncoder = this.device.createCommandEncoder();
+    commandEncoder.pushDebugGroup('initializeWithStoreOp');
+
     for (const viewDescriptor of this.generateTextureViewDescriptorsForRendering(
-      this.p.aspect,
+      'all',
       subresourceRange
     )) {
       if (kTextureFormatInfo[this.p.format].color) {
@@ -309,26 +311,36 @@ export class TextureZeroInitTest extends GPUTest {
               {
                 view: texture.createView(viewDescriptor),
                 storeOp: 'store',
-                loadValue: initializedStateAsColor(state, this.p.format),
+                clearValue: initializedStateAsColor(state, this.p.format),
+                loadOp: 'clear',
               },
             ],
           })
-          .endPass();
+          .end();
       } else {
+        const depthStencilAttachment: GPURenderPassDepthStencilAttachment = {
+          view: texture.createView(viewDescriptor),
+        };
+        if (kTextureFormatInfo[this.p.format].depth) {
+          depthStencilAttachment.depthClearValue = initializedStateAsDepth[state];
+          depthStencilAttachment.depthLoadOp = 'clear';
+          depthStencilAttachment.depthStoreOp = 'store';
+        }
+        if (kTextureFormatInfo[this.p.format].stencil) {
+          depthStencilAttachment.stencilClearValue = initializedStateAsStencil[state];
+          depthStencilAttachment.stencilLoadOp = 'clear';
+          depthStencilAttachment.stencilStoreOp = 'store';
+        }
         commandEncoder
           .beginRenderPass({
             colorAttachments: [],
-            depthStencilAttachment: {
-              view: texture.createView(viewDescriptor),
-              depthStoreOp: 'store',
-              depthLoadValue: initializedStateAsDepth[state],
-              stencilStoreOp: 'store',
-              stencilLoadValue: initializedStateAsStencil[state],
-            },
+            depthStencilAttachment,
           })
-          .endPass();
+          .end();
       }
     }
+
+    commandEncoder.popDebugGroup();
     this.queue.submit([commandEncoder.finish()]);
   }
 
@@ -399,11 +411,9 @@ export class TextureZeroInitTest extends GPUTest {
 
   discardTexture(texture: GPUTexture, subresourceRange: SubresourceRange): void {
     const commandEncoder = this.device.createCommandEncoder();
+    commandEncoder.pushDebugGroup('discardTexture');
 
-    for (const desc of this.generateTextureViewDescriptorsForRendering(
-      this.p.aspect,
-      subresourceRange
-    )) {
+    for (const desc of this.generateTextureViewDescriptorsForRendering('all', subresourceRange)) {
       if (kTextureFormatInfo[this.p.format].color) {
         commandEncoder
           .beginRenderPass({
@@ -411,26 +421,33 @@ export class TextureZeroInitTest extends GPUTest {
               {
                 view: texture.createView(desc),
                 storeOp: 'discard',
-                loadValue: 'load',
+                loadOp: 'load',
               },
             ],
           })
-          .endPass();
+          .end();
       } else {
+        const depthStencilAttachment: GPURenderPassDepthStencilAttachment = {
+          view: texture.createView(desc),
+        };
+        if (kTextureFormatInfo[this.p.format].depth) {
+          depthStencilAttachment.depthLoadOp = 'load';
+          depthStencilAttachment.depthStoreOp = 'discard';
+        }
+        if (kTextureFormatInfo[this.p.format].stencil) {
+          depthStencilAttachment.stencilLoadOp = 'load';
+          depthStencilAttachment.stencilStoreOp = 'discard';
+        }
         commandEncoder
           .beginRenderPass({
             colorAttachments: [],
-            depthStencilAttachment: {
-              view: texture.createView(desc),
-              depthStoreOp: 'discard',
-              depthLoadValue: 'load',
-              stencilStoreOp: 'discard',
-              stencilLoadValue: 'load',
-            },
+            depthStencilAttachment,
           })
-          .endPass();
+          .end();
       }
     }
+
+    commandEncoder.popDebugGroup();
     this.queue.submit([commandEncoder.finish()]);
   }
 }
@@ -512,7 +529,8 @@ const kTestParams = kUnitCaseParamsBuilder
 
     return (
       ((usage & GPUConst.TextureUsage.RENDER_ATTACHMENT) !== 0 && !info.renderable) ||
-      ((usage & GPUConst.TextureUsage.STORAGE_BINDING) !== 0 && !info.storage)
+      ((usage & GPUConst.TextureUsage.STORAGE_BINDING) !== 0 && !info.storage) ||
+      (sampleCount > 1 && !info.multisample)
     );
   })
   .combine('nonPowerOfTwo', [false, true])
@@ -556,9 +574,10 @@ export const g = makeTestGroup(TextureZeroInitTest);
 
 g.test('uninitialized_texture_is_zero')
   .params(kTestParams)
+  .beforeAllSubcases(t => {
+    t.selectDeviceOrSkipTestCase(kTextureFormatInfo[t.params.format].feature);
+  })
   .fn(async t => {
-    await t.selectDeviceOrSkipTestCase(kTextureFormatInfo[t.params.format].feature);
-
     const usage = getRequiredTextureUsage(
       t.params.format,
       t.params.sampleCount,

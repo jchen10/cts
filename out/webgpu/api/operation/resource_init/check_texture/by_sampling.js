@@ -39,7 +39,7 @@ subresourceRange) =>
     const indexExpression =
     componentCount === 1 ?
     componentOrder[0].toLowerCase() :
-    componentOrder.map(c => c.toLowerCase()).join('') + '[i]';
+    componentOrder.map((c) => c.toLowerCase()).join('') + '[i]';
 
     const _xd = '_' + params.dimension;
     const _multisampled = params.sampleCount > 1 ? '_multisampled' : '';
@@ -52,23 +52,24 @@ subresourceRange) =>
     'i32(GlobalInvocationID.x)' :
     unreachable();
     const computePipeline = t.device.createComputePipeline({
+      layout: 'auto',
       compute: {
         entryPoint: 'main',
         module: t.device.createShaderModule({
           code: `
             struct Constants {
-              level : i32;
+              level : i32
             };
 
             @group(0) @binding(0) var<uniform> constants : Constants;
             @group(0) @binding(1) var myTexture : texture${_multisampled}${_xd}<${shaderType}>;
 
             struct Result {
-              values : @stride(4) array<${shaderType}>;
+              values : array<${shaderType}>
             };
             @group(0) @binding(3) var<storage, read_write> result : Result;
 
-            @stage(compute) @workgroup_size(1)
+            @compute @workgroup_size(1)
             fn main(@builtin(global_invocation_id) GlobalInvocationID : vec3<u32>) {
               let flatIndex : u32 = ${componentCount}u * (
                 ${width}u * ${height}u * GlobalInvocationID.z +
@@ -114,7 +115,8 @@ subresourceRange) =>
           binding: 1,
           resource: texture.createView({
             baseArrayLayer: layer,
-            arrayLayerCount: 1 }) },
+            arrayLayerCount: 1,
+            dimension: params.dimension }) },
 
 
         {
@@ -130,8 +132,8 @@ subresourceRange) =>
       const pass = commandEncoder.beginComputePass();
       pass.setPipeline(computePipeline);
       pass.setBindGroup(0, bindGroup);
-      pass.dispatch(width, height, depth);
-      pass.endPass();
+      pass.dispatchWorkgroups(width, height, depth);
+      pass.end();
       t.queue.submit([commandEncoder.finish()]);
       ubo.destroy();
 

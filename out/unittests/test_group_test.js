@@ -21,8 +21,14 @@ export class TestGroupTest extends UnitTest {
   expectCases(g, cases) {
     const gcases = [];
     for (const t of g.iterate()) {
-      gcases.push(...Array.from(t.iterate(), c => c.id));
+      gcases.push(...Array.from(t.iterate(), (c) => c.id));
     }
-    this.expect(objectEquals(gcases, cases));
+    this.expect(
+    objectEquals(gcases, cases),
+    `expected
+  ${JSON.stringify(cases)}
+got
+  ${JSON.stringify(gcases)}`);
+
   }}
 //# sourceMappingURL=test_group_test.js.map

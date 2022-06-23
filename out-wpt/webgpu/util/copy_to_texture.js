@@ -1,24 +1,11 @@
 /**
  * AUTO-GENERATED - DO NOT EDIT. Source: https://github.com/gpuweb/cts
  **/ import { assert, memcpy } from '../../common/util/util.js';
-import { kTextureFormatInfo } from '../capability_info.js';
 import { GPUTest } from '../gpu_test.js';
 
-import { checkElementsEqual, checkElementsBetween } from './check_contents.js';
-import { align } from './math.js';
-import { kBytesPerRowAlignment } from './texture/layout.js';
-import { kTexelRepresentationInfo } from './texture/texel_data.js';
-
-export function isFp16Format(format) {
-  switch (format) {
-    case 'r16float':
-    case 'rg16float':
-    case 'rgba16float':
-      return true;
-    default:
-      return false;
-  }
-}
+import { makeInPlaceColorConversion } from './color_space_conversion.js';
+import { TexelView } from './texture/texel_view.js';
+import { textureContentIsOKByT2B } from './texture/texture_ok.js';
 
 export class CopyToTextureUtils extends GPUTest {
   doFlipY(sourcePixels, width, height, bytesPerPixel) {
@@ -41,149 +28,37 @@ export class CopyToTextureUtils extends GPUTest {
     return dstPixels;
   }
 
-  /**
-   * If the destination format specifies a transfer function,
-   * copyExternalImageToTexture (like B2T/T2T copies) should ignore it.
-   */
-  formatForExpectedPixels(format) {
-    return format === 'rgba8unorm-srgb'
-      ? 'rgba8unorm'
-      : format === 'bgra8unorm-srgb'
-      ? 'bgra8unorm'
-      : format;
-  }
+  getExpectedPixels(sourcePixels, width, height, format, isFlipY, conversion) {
+    const applyConversion = makeInPlaceColorConversion(conversion);
 
-  getSourceImageBitmapPixels(sourcePixels, width, height, isPremultiplied, isFlipY) {
-    return this.getExpectedPixels(
-      sourcePixels,
-      width,
-      height,
-      'rgba8unorm',
-      false,
-      isPremultiplied,
-      isFlipY
-    );
-  }
-
-  getExpectedPixels(
-    sourcePixels,
-    width,
-    height,
-    format,
-    srcPremultiplied,
-    dstPremultiplied,
-    isFlipY
-  ) {
-    const bytesPerPixel = kTextureFormatInfo[format].bytesPerBlock;
-
-    const orientedPixels = isFlipY ? this.doFlipY(sourcePixels, width, height, 4) : sourcePixels;
-    const expectedPixels = new Uint8ClampedArray(bytesPerPixel * width * height);
-
-    // Generate expectedPixels
-    // Use getImageData and readPixels to get canvas contents.
-    const rep = kTexelRepresentationInfo[format];
     const divide = 255.0;
-    let rgba;
-    for (let i = 0; i < height; ++i) {
-      for (let j = 0; j < width; ++j) {
-        const pixelPos = i * width + j;
+    return TexelView.fromTexelsAsColors(
+      format,
+      coords => {
+        assert(coords.x < width && coords.y < height && coords.z === 0, 'out of bounds');
+        const y = isFlipY ? height - coords.y - 1 : coords.y;
+        const pixelPos = y * width + coords.x;
 
-        rgba = {
-          R: orientedPixels[pixelPos * 4] / divide,
-          G: orientedPixels[pixelPos * 4 + 1] / divide,
-          B: orientedPixels[pixelPos * 4 + 2] / divide,
-          A: orientedPixels[pixelPos * 4 + 3] / divide,
+        const rgba = {
+          R: sourcePixels[pixelPos * 4] / divide,
+          G: sourcePixels[pixelPos * 4 + 1] / divide,
+          B: sourcePixels[pixelPos * 4 + 2] / divide,
+          A: sourcePixels[pixelPos * 4 + 3] / divide,
         };
 
-        if (!srcPremultiplied && dstPremultiplied) {
-          rgba.R *= rgba.A;
-          rgba.G *= rgba.A;
-          rgba.B *= rgba.A;
-        }
-
-        if (srcPremultiplied && !dstPremultiplied) {
-          assert(rgba.A !== 0.0);
-          rgba.R /= rgba.A;
-          rgba.G /= rgba.A;
-          rgba.B /= rgba.A;
-        }
-
-        memcpy(
-          { src: rep.pack(rep.encode(rgba)) },
-          { dst: expectedPixels, start: pixelPos * bytesPerPixel }
-        );
-      }
-    }
-
-    return expectedPixels;
-  }
-
-  // MAINTENANCE_TODO(crbug.com/dawn/868): Should be possible to consolidate this along with texture checking
-  checkCopyExternalImageResult(src, expected, width, height, bytesPerPixel, isFp16) {
-    const exp = new Uint8Array(expected.buffer, expected.byteOffset, expected.byteLength);
-    const rowPitch = align(width * bytesPerPixel, kBytesPerRowAlignment);
-
-    const readbackPromise = this.readGPUBufferRangeTyped(src, {
-      type: Uint8Array,
-      typedLength: rowPitch * height,
-    });
-
-    this.eventualAsyncExpectation(async niceStack => {
-      const readback = await readbackPromise;
-      const check = this.checkBufferWithRowPitch(
-        readback.data,
-        exp,
-        width,
-        height,
-        rowPitch,
-        bytesPerPixel,
-        isFp16
-      );
-
-      if (check !== undefined) {
-        niceStack.message = check;
-        this.rec.expectationFailed(niceStack);
-      }
-      readback.cleanup();
-    });
-  }
-
-  // MAINTENANCE_TODO(crbug.com/dawn/868): Should be possible to consolidate this along with texture checking
-  checkBufferWithRowPitch(actual, exp, width, height, rowPitch, bytesPerPixel, isFp16) {
-    const bytesPerRow = width * bytesPerPixel;
-    // When dst format is fp16 formats, the expectation and real result always has 1 bit difference in the ending
-    // (e.g. CC vs CD) if there needs some alpha ops (if alpha channel is not 0.0 or 1.0). Suspect it is errors when
-    // doing encoding. We check fp16 dst texture format with 1-bit ULP tolerance.
-    if (isFp16) {
-      for (let y = 0; y < height; ++y) {
-        const expRow = exp.subarray(y * bytesPerRow, bytesPerRow);
-        const checkResult = checkElementsBetween(actual.subarray(y * rowPitch, bytesPerRow), [
-          i => (expRow[i] > 0 ? expRow[i] - 1 : expRow[i]),
-          i => expRow[i] + 1,
-        ]);
-
-        if (checkResult !== undefined) return `on row ${y}: ${checkResult}`;
-      }
-    } else {
-      for (let y = 0; y < height; ++y) {
-        const checkResult = checkElementsEqual(
-          actual.subarray(y * rowPitch, bytesPerRow),
-          exp.subarray(y * bytesPerRow, bytesPerRow)
-        );
-
-        if (checkResult !== undefined) return `on row ${y}: ${checkResult}`;
-      }
-    }
-    return undefined;
+        applyConversion(rgba);
+        return rgba;
+      },
+      { clampToFormatRange: true }
+    );
   }
 
   doTestAndCheckResult(
     imageCopyExternalImage,
     dstTextureCopyView,
+    expTexelView,
     copySize,
-    bytesPerPixel,
-    expectedData,
-    isFp16
+    texelCompareOptions
   ) {
     this.device.queue.copyExternalImageToTexture(
       imageCopyExternalImage,
@@ -191,34 +66,14 @@ export class CopyToTextureUtils extends GPUTest {
       copySize
     );
 
-    const externalImage = imageCopyExternalImage.source;
-    const dstTexture = dstTextureCopyView.texture;
-
-    const bytesPerRow = align(externalImage.width * bytesPerPixel, kBytesPerRowAlignment);
-    const testBuffer = this.device.createBuffer({
-      size: bytesPerRow * externalImage.height,
-      usage: GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
-    });
-
-    this.trackForCleanup(testBuffer);
-
-    const encoder = this.device.createCommandEncoder();
-
-    encoder.copyTextureToBuffer(
-      { texture: dstTexture, mipLevel: 0, origin: { x: 0, y: 0, z: 0 } },
-      { buffer: testBuffer, bytesPerRow },
-      { width: externalImage.width, height: externalImage.height, depthOrArrayLayers: 1 }
+    const resultPromise = textureContentIsOKByT2B(
+      this,
+      { texture: dstTextureCopyView.texture },
+      copySize,
+      { expTexelView },
+      texelCompareOptions
     );
 
-    this.device.queue.submit([encoder.finish()]);
-
-    this.checkCopyExternalImageResult(
-      testBuffer,
-      expectedData,
-      externalImage.width,
-      externalImage.height,
-      bytesPerPixel,
-      isFp16
-    );
+    this.eventualExpectOK(resultPromise);
   }
 }
