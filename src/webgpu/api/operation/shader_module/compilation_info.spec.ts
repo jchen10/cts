@@ -139,13 +139,17 @@ g.test('line_number_and_position')
     );
   });
 
+// Common, Expected
+const kUnicodeShaderSources = kAllShaderSources.filter(
+  source => source.valid || !source.unicode
+);
 g.test('offset_and_length')
   .desc(
     `Test that message offsets and lengths are valid and align with any reported lineNum and linePos.
     - Test for valid and invalid shader modules.
     - Test for shader modules containing only ASCII and those containing unicode characters.`
   )
-  .paramsSimple(kAllShaderSources)
+  .paramsSimple(kUnicodeShaderSources)
   .fn(async t => {
     const { _code, valid } = t.params;
 

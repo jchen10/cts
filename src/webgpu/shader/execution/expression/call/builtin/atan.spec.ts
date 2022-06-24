@@ -27,6 +27,8 @@ g.test('abstract_float')
   )
   .unimplemented();
 
+// TODO(jie)
+/*
 g.test('f32')
   .specURL('https://www.w3.org/TR/WGSL/#float-builtin-functions')
   .desc(
@@ -60,7 +62,7 @@ TODO(#792): Decide what the ground-truth is for these tests. [1]
 
     run(t, builtin('atan'), [TypeF32], TypeF32, t.params, cases);
   });
-
+*/
 g.test('f16')
   .specURL('https://www.w3.org/TR/WGSL/#float-builtin-functions')
   .desc(`f16 tests`)

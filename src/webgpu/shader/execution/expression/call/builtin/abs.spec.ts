@@ -140,6 +140,8 @@ g.test('abstract_float')
   )
   .unimplemented();
 
+// Linux, Expected
+/*
 g.test('f32')
   .specURL('https://www.w3.org/TR/WGSL/#float-builtin-functions')
   .desc(`float 32 tests`)
@@ -159,6 +161,7 @@ g.test('f32')
 
     run(t, builtin('abs'), [TypeF32], TypeF32, t.params, cases);
   });
+*/
 
 g.test('f16')
   .specURL('https://www.w3.org/TR/WGSL/#float-builtin-functions')

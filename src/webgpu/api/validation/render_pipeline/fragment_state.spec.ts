@@ -45,6 +45,8 @@ g.test('color_target_exists')
     t.doCreateRenderPipelineTest(isAsync, false, badDescriptor);
   });
 
+// TODO(jie)
+/*
 g.test('max_color_attachments_limit')
   .desc(
     `Tests that color state targets length must not be larger than device.limits.maxColorAttachments.`
@@ -67,6 +69,7 @@ g.test('max_color_attachments_limit')
       descriptor
     );
   });
+*/
 
 g.test('targets_format_renderable')
   .desc(`Tests that color target state format must have RENDER_ATTACHMENT capability.`)

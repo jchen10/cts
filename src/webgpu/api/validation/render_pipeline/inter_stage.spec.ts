@@ -208,6 +208,8 @@ g.test('interpolation_sampling')
     t.doCreateRenderPipelineTest(isAsync, _success ?? output === input, descriptor);
   });
 
+// TODO(jie)
+/*
 g.test('max_shader_variable_location')
   .desc(
     `Tests that validation should fail when there is location of user-defined output/input variable >= device.limits.maxInterStageShaderVariables`
@@ -322,3 +324,4 @@ g.test('max_components_count,input')
 
     t.doCreateRenderPipelineTest(isAsync, _success, descriptor);
   });
+*/

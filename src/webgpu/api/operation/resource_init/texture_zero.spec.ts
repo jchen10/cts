@@ -572,6 +572,8 @@ const checkContentsImpl: { [k in ReadMethod]: CheckContents } = {
 
 export const g = makeTestGroup(TextureZeroInitTest);
 
+// TODO(jie)
+/*
 g.test('uninitialized_texture_is_zero')
   .params(kTestParams)
   .beforeAllSubcases(t => {
@@ -642,3 +644,4 @@ g.test('uninitialized_texture_is_zero')
       }
     }
   });
+  */

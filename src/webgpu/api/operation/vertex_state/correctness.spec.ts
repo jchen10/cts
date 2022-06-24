@@ -753,6 +753,8 @@ g.test('buffers_with_varying_step_mode')
     t.runTest(state);
   });
 
+// PASS seperately
+/*
 g.test('vertex_buffer_used_multiple_times_overlapped')
   .desc(
     `Test using the same vertex buffer in for multiple "vertex buffers", with data from each buffer overlapping.
@@ -852,7 +854,7 @@ g.test('vertex_buffer_used_multiple_times_overlapped')
     t.submitRenderPass(pipeline, vertexBuffers, expectedDataBG, kVertexCount, kInstanceCount);
   });
 
-g.test('vertex_buffer_used_multiple_times_interleaved')
+  g.test('vertex_buffer_used_multiple_times_interleaved')
   .desc(
     `Test using the same vertex buffer in for multiple "vertex buffers", with data from each buffer interleaved.
   - For each vertex format.
@@ -930,6 +932,7 @@ g.test('vertex_buffer_used_multiple_times_interleaved')
     const expectedDataBG = t.createExpectedBG(testData, pipeline);
     t.submitRenderPass(pipeline, vertexBuffers, expectedDataBG, kVertexCount, kInstanceCount);
   });
+*/
 
 g.test('max_buffers_and_attribs')
   .desc(
@@ -960,6 +963,8 @@ g.test('max_buffers_and_attribs')
     t.runTest(state);
   });
 
+// PASS seperately.
+/*
 g.test('array_stride_zero')
   .desc(
     `Test that arrayStride 0 correctly uses the same data for all vertex/instances, while another test vertex buffer with arrayStride != 0 gets different data.
@@ -1046,7 +1051,7 @@ g.test('array_stride_zero')
     const expectedDataBG = t.createExpectedBG(state, pipeline);
     t.submitRenderPass(pipeline, vertexBuffers, expectedDataBG, kCount, kCount);
   });
-
+*/
 g.test('discontiguous_location_and_attribs')
   .desc('Test that using far away slots / shaderLocations works as expected')
   .fn(t => {

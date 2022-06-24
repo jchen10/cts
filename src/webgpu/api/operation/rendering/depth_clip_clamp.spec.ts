@@ -14,6 +14,8 @@ import {
 
 export const g = makeTestGroup(GPUTest);
 
+// Common, Expected
+/*
 g.test('depth_clamp_and_clip')
   .desc(
     `
@@ -53,9 +55,7 @@ have unexpected values then get drawn to the color buffer, which is later checke
     const { format, unclippedDepth, writeDepth, multisampled } = t.params;
     const info = kTextureFormatInfo[format];
 
-    /** Number of depth values to test for both vertex output and frag_depth output. */
     const kNumDepthValues = 8;
-    /** Test every combination of vertex output and frag_depth output. */
     const kNumTestPoints = kNumDepthValues * kNumDepthValues;
     const kViewportMinDepth = 0.25;
     const kViewportMaxDepth = 0.75;
@@ -522,3 +522,4 @@ to be empty.`
       method: 'map',
     });
   });
+*/

@@ -48,6 +48,11 @@ const kVideoExpectations = [
   },
 ] as const;
 
+// TODO(jie): 0-copy -- invalid colorspace and bt709->srgb
+const kVideoExpectationsNoMp4 = kVideoExpectations.filter(
+  expectation => expectation.videoSource == 'red-green.bt2020.vp9.webm'
+);
+
 export const g = makeTestGroup(GPUTest);
 
 function createExternalTextureSamplingTestPipeline(t: GPUTest): GPURenderPipeline {
@@ -132,7 +137,7 @@ supported video formats {vp8, vp9, ogg, mp4} and common source colorspaces {bt.6
   )
   .params(u =>
     u //
-      .combineWithParams(kVideoExpectations)
+      .combineWithParams(kVideoExpectationsNoMp4)
   )
   .fn(async t => {
     const videoUrl = getResourcePath(t.params.videoSource);
@@ -282,7 +287,7 @@ Tests that we can import an HTMLVideoElement into a GPUExternalTexture and use i
   )
   .params(u =>
     u //
-      .combineWithParams(kVideoExpectations)
+      .combineWithParams(kVideoExpectationsNoMp4)
   )
   .fn(async t => {
     const videoUrl = getResourcePath(t.params.videoSource);

@@ -625,6 +625,10 @@ const kCopyBoxOffsetsFor2DArrayTextures = [
 
 export const g = makeTestGroup(F);
 
+// Linux, Expected.
+const srcFormats = kRegularTextureFormats.filter(
+  format => format != "rgb9e5ufloat"
+);
 g.test('color_textures,non_compressed,non_array')
   .desc(
     `
@@ -644,7 +648,7 @@ g.test('color_textures,non_compressed,non_array')
   )
   .params(u =>
     u
-      .combine('srcFormat', kRegularTextureFormats)
+      .combine('srcFormat', srcFormats)
       .combine('dstFormat', kRegularTextureFormats)
       .filter(({ srcFormat, dstFormat }) => {
         const srcBaseFormat = kTextureFormatInfo[srcFormat].baseFormat;

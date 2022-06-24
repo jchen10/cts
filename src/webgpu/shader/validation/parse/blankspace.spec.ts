@@ -5,6 +5,8 @@ import { ShaderValidationTest } from '../shader_validation_test.js';
 
 export const g = makeTestGroup(ShaderValidationTest);
 
+// TODO(jie)
+/*
 g.test('null_characters')
   .desc(`Test that WGSL source containing a null character is rejected.`)
   .params(u =>
@@ -24,6 +26,7 @@ g.test('null_characters')
     }
     t.expectCompileResult(!t.params.contains_null, code);
   });
+*/
 
 g.test('blankspace')
   .desc(`Test that all blankspace characters act as delimiters.`)

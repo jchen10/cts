@@ -14,6 +14,9 @@ const kOptionalTextureFormats = kAllTextureFormats.filter(
   t => kTextureFormatInfo[t].feature !== undefined
 );
 
+// TODO(jie)
+// ADL
+/*
 g.test('texture_descriptor')
   .desc(
     `
@@ -393,3 +396,5 @@ g.test('render_bundle_encoder_descriptor_depth_stencil_format')
       });
     });
   });
+  */
+

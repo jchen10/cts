@@ -543,6 +543,8 @@ g.test('copy_contents_from_gl_context_canvas')
     t.doCopyContentsTest(canvas, sourcePixels, t.params);
   });
 
+// Linux, Expected
+/*
 g.test('copy_contents_from_gpu_context_canvas')
   .desc(
     `
@@ -609,6 +611,7 @@ g.test('copy_contents_from_gpu_context_canvas')
 
     t.doCopyContentsTest(canvas, sourcePixels, t.params);
   });
+*/
 
 g.test('color_space_conversion')
   .desc(

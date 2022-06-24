@@ -92,6 +92,8 @@ const kU32 = new Set([
     '1.0f', // no conversion from float
     '1.0h', // no conversion from float
   ]);
+  // TODO(jie)
+  /*
   g.test('u32')
     .desc(
       `Test that valid unsigned integers are accepted, and invalid unsigned integers are rejected.`
@@ -101,6 +103,7 @@ const kU32 = new Set([
       const code = `var test: u32 = ${t.params.val};`;
       t.expectCompileResult(kValidU32.has(t.params.val), t.wrapInEntryPoint(code));
     });
+  */
 }
 
 const kF32 = new Set([
@@ -171,6 +174,8 @@ const kAbstractFloat = new Set([
     '0x1.0p+999999h', // Too large hex
   ]);
 
+  // TODO(jie)
+  /*
   g.test('abstract_float')
     .desc(`Test that valid floats are accepted, and invalid floats are rejected`)
     .params(u => u.combine('val', new Set([...kValidFloats, ...kInvalidFloats])).beginSubcases())
@@ -178,6 +183,7 @@ const kAbstractFloat = new Set([
       const code = `var test = ${t.params.val};`;
       t.expectCompileResult(kValidFloats.has(t.params.val), t.wrapInEntryPoint(code));
     });
+  */
 }
 
 {

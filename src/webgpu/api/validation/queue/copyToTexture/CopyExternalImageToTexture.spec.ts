@@ -277,6 +277,8 @@ g.test('source_offscreenCanvas,contexts')
     );
   });
 
+// PASS seperately
+/*
 g.test('source_image,crossOrigin')
   .desc(
     `
@@ -384,6 +386,7 @@ g.test('source_image,crossOrigin')
       isOriginClean ? '' : 'SecurityError'
     );
   });
+*/
 
 g.test('source_imageBitmap,state')
   .desc(

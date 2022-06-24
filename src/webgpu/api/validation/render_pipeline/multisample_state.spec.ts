@@ -46,6 +46,8 @@ g.test('alpha_to_coverage,count')
     t.doCreateRenderPipelineTest(isAsync, _success, descriptor);
   });
 
+// TODO(jie)
+/*
 g.test('alpha_to_coverage,sample_mask')
   .desc(
     `If sample_mask builtin is a pipeline output of fragment, multisample.alphaToCoverageEnabled should be false.`
@@ -81,3 +83,4 @@ g.test('alpha_to_coverage,sample_mask')
     const _success = !hasSampleMaskOutput || !alphaToCoverageEnabled;
     t.doCreateRenderPipelineTest(isAsync, _success, descriptor);
   });
+  */

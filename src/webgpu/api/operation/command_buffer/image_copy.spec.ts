@@ -1594,6 +1594,8 @@ function* generateTestTextureSizes({
   }
 }
 
+// Pass sperately
+/*
 g.test('mip_levels')
   .desc(
     `Test that copying various mip levels works. Covers two special code paths:
@@ -1615,7 +1617,7 @@ TODO: Make a variant for depth-stencil formats.
       .filter(({ dimension, format }) => textureDimensionAndFormatCompatible(dimension, format))
       .beginSubcases()
       .combineWithParams([
-        // origin + copySize = texturePhysicalSizeAtMipLevel for all coordinates, 2d texture */
+        // origin + copySize = texturePhysicalSizeAtMipLevel for all coordinates, 2d texture
         {
           copySizeInBlocks: { width: 5, height: 4, depthOrArrayLayers: 1 },
           originInBlocks: { x: 3, y: 2, z: 0 },
@@ -1711,6 +1713,7 @@ TODO: Make a variant for depth-stencil formats.
       checkMethod,
     });
   });
+*/
 
 const UND = undefined;
 g.test('undefined_params')

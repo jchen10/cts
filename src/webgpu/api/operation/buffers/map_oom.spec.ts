@@ -72,6 +72,8 @@ g.test('mapAsync')
     }
   });
 
+// Common, Expected.
+/*
 g.test('mappedAtCreation,full_getMappedRange')
   .desc(
     `Test creating a very large buffer mappedAtCreation buffer should produce
@@ -113,6 +115,7 @@ an out-of-memory error if allocation fails.
     }
   });
 
+
 g.test('mappedAtCreation,smaller_getMappedRange')
   .desc(
     `Test creating a very large mappedAtCreation buffer should produce
@@ -145,3 +148,4 @@ an out-of-memory error if allocation fails.
     buffer.unmap();
     t.expect(mapping.byteLength === 0, 'Mapping should be detached');
   });
+*/

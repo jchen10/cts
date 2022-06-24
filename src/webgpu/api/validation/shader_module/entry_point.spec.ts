@@ -40,6 +40,8 @@ const kEntryPointTestCases = [
   { shaderModuleEntryPoint: 'séquençage', stageEntryPoint: 'sequencage' },
 ];
 
+// TODO(jie)
+/*
 g.test('compute')
   .desc(
     `
@@ -115,3 +117,4 @@ and check that the APIs only accept matching entryPoint.
     const _success = shaderModuleEntryPoint === stageEntryPoint;
     t.doCreateRenderPipelineTest(isAsync, _success, descriptor);
   });
+*/

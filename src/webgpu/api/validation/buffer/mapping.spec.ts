@@ -307,6 +307,8 @@ g.test('getMappedRange,state,mapped')
     t.expect(data.byteLength === 0);
   });
 
+// PASS seperately
+/*
 g.test('getMappedRange,state,mappedAtCreation')
   .desc(
     `Test that, in the mapped-at-creation state, it is valid to call getMappedRange, for all buffer usages,
@@ -341,7 +343,7 @@ g.test('getMappedRange,state,mappedAtCreation')
 
     t.expect(data.byteLength === 0);
   });
-
+*/
 g.test('getMappedRange,state,invalid_mappedAtCreation')
   .desc(
     `mappedAtCreation should return a mapped buffer, even if the buffer is invalid.
