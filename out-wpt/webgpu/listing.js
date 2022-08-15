@@ -275,6 +275,13 @@ export const listing = [
     "file": [
       "api",
       "operation",
+      "reflection"
+    ]
+  },
+  {
+    "file": [
+      "api",
+      "operation",
       "render_pass"
     ],
     "readme": "Render pass stuff other than commands (which are in command_buffer/)."
@@ -654,7 +661,7 @@ export const listing = [
       "api",
       "validation",
       "encoding",
-      "beginRenderPass"
+      "beginComputePass"
     ]
   },
   {
@@ -662,8 +669,7 @@ export const listing = [
       "api",
       "validation",
       "encoding",
-      "cmds",
-      "buffer_texture_copies"
+      "beginRenderPass"
     ]
   },
   {
@@ -905,6 +911,14 @@ export const listing = [
       "api",
       "validation",
       "image_copy",
+      "buffer_texture_copies"
+    ]
+  },
+  {
+    "file": [
+      "api",
+      "validation",
+      "image_copy",
       "layout_related"
     ]
   },
@@ -995,6 +1009,14 @@ export const listing = [
       "validation",
       "queue",
       "writeBuffer"
+    ]
+  },
+  {
+    "file": [
+      "api",
+      "validation",
+      "queue",
+      "writeTexture"
     ]
   },
   {
@@ -2021,6 +2043,16 @@ export const listing = [
       "expression",
       "call",
       "builtin",
+      "saturate"
+    ]
+  },
+  {
+    "file": [
+      "shader",
+      "execution",
+      "expression",
+      "call",
+      "builtin",
       "select"
     ]
   },
@@ -2439,7 +2471,23 @@ export const listing = [
       "shader",
       "validation",
       "parse",
+      "align"
+    ]
+  },
+  {
+    "file": [
+      "shader",
+      "validation",
+      "parse",
       "blankspace"
+    ]
+  },
+  {
+    "file": [
+      "shader",
+      "validation",
+      "parse",
+      "builtin"
     ]
   },
   {
@@ -2488,6 +2536,14 @@ export const listing = [
       "validation",
       "shader_io",
       "builtins"
+    ]
+  },
+  {
+    "file": [
+      "shader",
+      "validation",
+      "shader_io",
+      "entry_point"
     ]
   },
   {
@@ -2574,7 +2630,7 @@ export const listing = [
     "file": [
       "web_platform",
       "canvas",
-      "getPreferredFormat"
+      "getPreferredCanvasFormat"
     ]
   },
   {

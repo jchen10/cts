@@ -4,10 +4,15 @@
 Execution Tests for the f32 arithmetic binary expression operations
 `;import { makeTestGroup } from '../../../../../common/framework/test_group.js';
 import { GPUTest } from '../../../../gpu_test.js';
-import { correctlyRoundedMatch, ulpMatch } from '../../../../util/compare.js';
 import { TypeF32 } from '../../../../util/conversion.js';
+import {
+additionInterval,
+divisionInterval,
+multiplicationInterval,
+subtractionInterval } from
+'../../../../util/f32_interval.js';
 import { biasedRange, fullF32Range } from '../../../../util/math.js';
-import { allInputSources, makeBinaryF32Case, run } from '../expression.js';
+import { allInputSources, makeBinaryF32IntervalCase, run } from '../expression.js';
 
 import { binary } from './binary.js';
 
@@ -25,13 +30,8 @@ params((u) =>
 u.combine('inputSource', allInputSources).combine('vectorize', [undefined, 2, 3, 4])).
 
 fn(async (t) => {
-  const cfg = t.params;
-  cfg.cmpFloats = correctlyRoundedMatch();
-
   const makeCase = (lhs, rhs) => {
-    return makeBinaryF32Case(lhs, rhs, (l, r) => {
-      return l + r;
-    });
+    return makeBinaryF32IntervalCase(lhs, rhs, additionInterval);
   };
 
   const cases = [];
@@ -42,7 +42,7 @@ fn(async (t) => {
     });
   });
 
-  run(t, binary('+'), [TypeF32, TypeF32], TypeF32, cfg, cases);
+  run(t, binary('+'), [TypeF32, TypeF32], TypeF32, t.params, cases);
 });
 
 g.test('subtraction').
@@ -57,13 +57,8 @@ params((u) =>
 u.combine('inputSource', allInputSources).combine('vectorize', [undefined, 2, 3, 4])).
 
 fn(async (t) => {
-  const cfg = t.params;
-  cfg.cmpFloats = correctlyRoundedMatch();
-
   const makeCase = (lhs, rhs) => {
-    return makeBinaryF32Case(lhs, rhs, (l, r) => {
-      return l - r;
-    });
+    return makeBinaryF32IntervalCase(lhs, rhs, subtractionInterval);
   };
 
   const cases = [];
@@ -74,7 +69,7 @@ fn(async (t) => {
     });
   });
 
-  run(t, binary('-'), [TypeF32, TypeF32], TypeF32, cfg, cases);
+  run(t, binary('-'), [TypeF32, TypeF32], TypeF32, t.params, cases);
 });
 
 g.test('multiplication').
@@ -89,13 +84,8 @@ params((u) =>
 u.combine('inputSource', allInputSources).combine('vectorize', [undefined, 2, 3, 4])).
 
 fn(async (t) => {
-  const cfg = t.params;
-  cfg.cmpFloats = correctlyRoundedMatch();
-
   const makeCase = (lhs, rhs) => {
-    return makeBinaryF32Case(lhs, rhs, (l, r) => {
-      return l * r;
-    });
+    return makeBinaryF32IntervalCase(lhs, rhs, multiplicationInterval);
   };
 
   const cases = [];
@@ -105,8 +95,7 @@ fn(async (t) => {
       cases.push(makeCase(lhs, rhs));
     });
   });
-
-  run(t, binary('*'), [TypeF32, TypeF32], TypeF32, cfg, cases);
+  run(t, binary('*'), [TypeF32, TypeF32], TypeF32, t.params, cases);
 });
 
 g.test('division').
@@ -121,32 +110,21 @@ params((u) =>
 u.combine('inputSource', allInputSources).combine('vectorize', [undefined, 2, 3, 4])).
 
 fn(async (t) => {
-  const cfg = t.params;
-  cfg.cmpFloats = ulpMatch(2.5);
-
   const makeCase = (lhs, rhs) => {
-    return makeBinaryF32Case(
-    lhs,
-    rhs,
-    (l, r) => {
-      return l / r;
-    },
-    true);
-
+    return makeBinaryF32IntervalCase(lhs, rhs, divisionInterval);
   };
 
   const cases = [];
-  const lhs_numeric_range = fullF32Range();
-  const rhs_numeric_range = biasedRange(2 ** -126, 2 ** 126, 200).filter((value) => {
-    return value !== 0.0;
-  });
-  lhs_numeric_range.forEach((lhs) => {
-    rhs_numeric_range.forEach((rhs) => {
+  const lhs_range = fullF32Range();
+  const rhs_range = biasedRange(2 ** -126, 2 ** 126, 200);
+
+  lhs_range.forEach((lhs) => {
+    rhs_range.forEach((rhs) => {
       cases.push(makeCase(lhs, rhs));
     });
   });
 
-  run(t, binary('/'), [TypeF32, TypeF32], TypeF32, cfg, cases);
+  run(t, binary('/'), [TypeF32, TypeF32], TypeF32, t.params, cases);
 });
 
 // Will be implemented as part larger derived accuracy task

@@ -185,7 +185,7 @@ export class ValidationTest extends GPUTest {
   }
 
   /**
-   * Return an arbitrary object of the specified {@link BindableResource} type
+   * Return an arbitrary object of the specified {@link webgpu/capability_info!BindableResource} type
    * (e.g. `'errorBuf'`, `'nonFiltSamp'`, `sampledTexMS`, etc.)
    */
   getBindingResource(bindingType) {
@@ -306,9 +306,9 @@ export class ValidationTest extends GPUTest {
   }
 
   /** Return a GPURenderPipeline with default options and no-op vertex and fragment shaders. */
-  createNoOpRenderPipeline() {
+  createNoOpRenderPipeline(layout = 'auto') {
     return this.device.createRenderPipeline({
-      layout: 'auto',
+      layout,
       vertex: {
         module: this.device.createShaderModule({
           code: this.getNoOpShaderCode('VERTEX'),
