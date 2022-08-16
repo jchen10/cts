@@ -148,12 +148,21 @@ for several combinations of video format and color space.
   .params(u =>
     u //
       .combine('sourceType', ['VideoElement', 'VideoFrame'])
+      .combine("requireZeroCopy", [false, true])
       .combineWithParams(kVideoExpectations)
   )
   .fn(async t => {
     const sourceType = t.params.sourceType;
     if (sourceType === 'VideoFrame' && typeof VideoFrame === 'undefined') {
       t.skip('WebCodec is not supported');
+    }
+
+    if (t.params.requireZeroCopy) {
+      if (t.device.requireZeroCopyImport) {
+        t.device.requireZeroCopyImport();
+      } else {
+        t.skip('zero copy import is not supported.');
+      }
     }
 
     const videoUrl = getResourcePath(t.params.videoSource);
