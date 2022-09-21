@@ -867,24 +867,6 @@ g.test('color_textures,non_compressed,array')
       .combine('copyBoxOffsets', kCopyBoxOffsetsFor2DArrayTextures)
       .combine('srcCopyLevel', [0, 3])
       .combine('dstCopyLevel', [0, 3])
-      .unless(
-        ({ srcFormat, dstFormat, dimension }) =>
-          dimension === '2d' &&
-          ((srcFormat === 'r16float' && dstFormat === 'r16float') ||
-            (srcFormat === 'rg8unorm' && dstFormat === 'rg8unorm') ||
-            (srcFormat === 'rg8snorm' && dstFormat === 'rg8snorm') ||
-            (srcFormat === 'rg16float' && dstFormat === 'rg16float') ||
-            (srcFormat === 'rgba8unorm' && dstFormat === 'rgba8unorm') ||
-            (srcFormat === 'rgba8unorm' && dstFormat === 'rgba8unorm-srgb') ||
-            (srcFormat === 'rgba8unorm-srgb' && dstFormat === 'rgba8unorm') ||
-            (srcFormat === 'rgba8unorm-srgb' && dstFormat === 'rgba8unorm-srgb') ||
-            (srcFormat === 'rgba8snorm' && dstFormat === 'rgba8snorm') ||
-            (srcFormat === 'bgra8unorm' && dstFormat === 'bgra8unorm') ||
-            (srcFormat === 'bgra8unorm' && dstFormat === 'bgra8unorm-srgb') ||
-            (srcFormat === 'bgra8unorm-srgb' && dstFormat === 'bgra8unorm') ||
-            (srcFormat === 'bgra8unorm-srgb' && dstFormat === 'bgra8unorm-srgb') ||
-            (srcFormat === 'rgb10a2unorm' && dstFormat === 'rgb10a2unorm'))
-      )
   )
   .fn(async t => {
     const {
