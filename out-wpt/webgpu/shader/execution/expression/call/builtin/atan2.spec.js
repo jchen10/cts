@@ -13,7 +13,7 @@ import { GPUTest } from '../../../../../gpu_test.js';
 import { TypeF32 } from '../../../../../util/conversion.js';
 import { atan2Interval } from '../../../../../util/f32_interval.js';
 import { fullF32Range } from '../../../../../util/math.js';
-import { allInputSources, makeBinaryF32IntervalCase, run } from '../../expression.js';
+import { allInputSources, makeBinaryToF32IntervalCase, run } from '../../expression.js';
 
 import { builtin } from './builtin.js';
 
@@ -37,7 +37,7 @@ TODO(#792): Decide what the ground-truth is for these tests. [1]
   .params(u => u.combine('inputSource', allInputSources).combine('vectorize', [undefined, 2, 3, 4]))
   .fn(async t => {
     const makeCase = (y, x) => {
-      return makeBinaryF32IntervalCase(y, x, atan2Interval);
+      return makeBinaryToF32IntervalCase(y, x, atan2Interval);
     };
 
     const numeric_range = fullF32Range();
@@ -48,7 +48,7 @@ TODO(#792): Decide what the ground-truth is for these tests. [1]
       });
     });
 
-    run(t, builtin('atan2'), [TypeF32, TypeF32], TypeF32, t.params, cases);
+    await run(t, builtin('atan2'), [TypeF32, TypeF32], TypeF32, t.params, cases);
   });
 
 g.test('f16')

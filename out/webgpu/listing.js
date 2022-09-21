@@ -38,14 +38,6 @@ export const listing = [
     "file": [
       "api",
       "operation",
-      "adapter",
-      "requestDevice_limits"
-    ]
-  },
-  {
-    "file": [
-      "api",
-      "operation",
       "async_ordering"
     ],
     "readme": "Test ordering of async resolutions between promises returned by the following calls (and possibly\nbetween multiple of the same call), where there are constraints on the ordering.\nSpec issue: https://github.com/gpuweb/gpuweb/issues/962\n\nTODO: plan and implement\n- createReadyPipeline() (not sure if this actually has any ordering constraints)\n- cmdbuf.executionTime\n- device.popErrorScope()\n- device.lost\n- queue.onSubmittedWorkDone()\n- buffer.mapAsync()\n- shadermodule.compilationInfo()"
@@ -194,17 +186,17 @@ export const listing = [
     "file": [
       "api",
       "operation",
-      "device",
-      "lost"
+      "compute_pipeline",
+      "overrides"
     ]
   },
   {
     "file": [
       "api",
       "operation",
-      "error_scope"
-    ],
-    "readme": "TODO: plan and implement\n- test very deeply nested error scopes, make sure errors go to the right place, e.g.\n    - validation, ..., validation, out-of-memory\n    - out-of-memory, validation, ..., validation\n    - out-of-memory, ..., out-of-memory, validation\n    - validation, out-of-memory, ..., out-of-memory\n- use error scopes on two different threads and make sure errors go to the right place\n- unhandled errors always go to the \"original\" device object\n    - test they go nowhere if the original was dropped (attemptGarbageCollection to make sure)"
+      "device",
+      "lost"
+    ]
   },
   {
     "file": [
@@ -332,6 +324,14 @@ export const listing = [
       "operation",
       "render_pipeline",
       "culling_tests"
+    ]
+  },
+  {
+    "file": [
+      "api",
+      "operation",
+      "render_pipeline",
+      "overrides"
     ]
   },
   {
@@ -934,14 +934,6 @@ export const listing = [
     "file": [
       "api",
       "validation",
-      "initialization",
-      "requestDevice"
-    ]
-  },
-  {
-    "file": [
-      "api",
-      "validation",
       "layout_shader_compat"
     ]
   },
@@ -1104,6 +1096,14 @@ export const listing = [
       "api",
       "validation",
       "render_pipeline",
+      "overrides"
+    ]
+  },
+  {
+    "file": [
+      "api",
+      "validation",
+      "render_pipeline",
       "primitive_state"
     ]
   },
@@ -1183,6 +1183,14 @@ export const listing = [
       "validation",
       "shader_module",
       "entry_point"
+    ]
+  },
+  {
+    "file": [
+      "api",
+      "validation",
+      "shader_module",
+      "overrides"
     ]
   },
   {

@@ -19,17 +19,12 @@ import { GPUTest } from '../../../gpu_test.js';
 import { makeBufferWithContents } from '../../../util/buffer.js';
 import { align } from '../../../util/math.js';
 import { physicalMipSize } from '../../../util/texture/base.js';
+import { DataArrayGenerator } from '../../../util/texture/data_generation.js';
 import { kBytesPerRowAlignment, dataBytesForCopyOrFail } from '../../../util/texture/layout.js';
 
-class F extends GPUTest {
-  GetInitialData(byteSize: number): Uint8Array {
-    const initialData = new Uint8Array(byteSize);
-    for (let i = 0; i < initialData.length; ++i) {
-      initialData[i] = ((i ** 3 + i) % 251) + 1; // Have all initialData be non zero.
-    }
-    return initialData;
-  }
+const dataGenerator = new DataArrayGenerator();
 
+class F extends GPUTest {
   GetInitialDataPerMipLevel(
     dimension: GPUTextureDimension,
     textureSize: Required<GPUExtent3DDict>,
@@ -45,7 +40,7 @@ class F extends GPUTest {
       (textureSizeAtLevel.height / blockHeightInTexel);
 
     const byteSize = bytesPerBlock * blocksPerSubresource * textureSizeAtLevel.depthOrArrayLayers;
-    return this.GetInitialData(byteSize);
+    return dataGenerator.generateView(byteSize);
   }
 
   GetInitialStencilDataPerMipLevel(
@@ -60,7 +55,7 @@ class F extends GPUTest {
       textureSizeAtLevel.width *
       textureSizeAtLevel.height *
       textureSizeAtLevel.depthOrArrayLayers;
-    return this.GetInitialData(byteSize);
+    return dataGenerator.generateView(byteSize);
   }
 
   DoCopyTextureToTextureTest(
@@ -872,6 +867,24 @@ g.test('color_textures,non_compressed,array')
       .combine('copyBoxOffsets', kCopyBoxOffsetsFor2DArrayTextures)
       .combine('srcCopyLevel', [0, 3])
       .combine('dstCopyLevel', [0, 3])
+      .unless(
+        ({ srcFormat, dstFormat, dimension }) =>
+          dimension === '2d' &&
+          ((srcFormat === 'r16float' && dstFormat === 'r16float') ||
+            (srcFormat === 'rg8unorm' && dstFormat === 'rg8unorm') ||
+            (srcFormat === 'rg8snorm' && dstFormat === 'rg8snorm') ||
+            (srcFormat === 'rg16float' && dstFormat === 'rg16float') ||
+            (srcFormat === 'rgba8unorm' && dstFormat === 'rgba8unorm') ||
+            (srcFormat === 'rgba8unorm' && dstFormat === 'rgba8unorm-srgb') ||
+            (srcFormat === 'rgba8unorm-srgb' && dstFormat === 'rgba8unorm') ||
+            (srcFormat === 'rgba8unorm-srgb' && dstFormat === 'rgba8unorm-srgb') ||
+            (srcFormat === 'rgba8snorm' && dstFormat === 'rgba8snorm') ||
+            (srcFormat === 'bgra8unorm' && dstFormat === 'bgra8unorm') ||
+            (srcFormat === 'bgra8unorm' && dstFormat === 'bgra8unorm-srgb') ||
+            (srcFormat === 'bgra8unorm-srgb' && dstFormat === 'bgra8unorm') ||
+            (srcFormat === 'bgra8unorm-srgb' && dstFormat === 'bgra8unorm-srgb') ||
+            (srcFormat === 'rgb10a2unorm' && dstFormat === 'rgb10a2unorm'))
+      )
   )
   .fn(async t => {
     const {

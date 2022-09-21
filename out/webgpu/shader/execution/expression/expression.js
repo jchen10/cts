@@ -1,6 +1,7 @@
 /**
 * AUTO-GENERATED - DO NOT EDIT. Source: https://github.com/gpuweb/cts
-**/import { assert } from '../../../../common/util/util.js';import { compare, anyOf } from '../../../util/compare.js';
+**/import { globalTestConfig } from '../../../../common/framework/test_config.js';import { assert } from '../../../../common/util/util.js';
+import { compare, anyOf } from '../../../util/compare.js';
 import {
 ScalarType,
 Scalar,
@@ -17,6 +18,9 @@ import {
 F32Interval } from
 
 
+
+
+
 '../../../util/f32_interval.js';
 import { quantizeToF32 } from '../../../util/math.js';
 
@@ -24,7 +28,12 @@ import { quantizeToF32 } from '../../../util/math.js';
 
 /** Is this expectation actually a Comparator */
 function isComparator(e) {
-  return !(e instanceof F32Interval || e instanceof Scalar || e instanceof Vector);
+  return !(
+  e instanceof F32Interval ||
+  e instanceof Scalar ||
+  e instanceof Vector ||
+  e instanceof Array);
+
 }
 
 /** Helper for converting Values to Comparators */
@@ -166,22 +175,29 @@ cases)
 
   }();
 
-  // Submit all the batches, then check the results.
+  // Submit all the batches inside an error scope.
+  // Note: there is no async work between "push" and "pop" so this is safe to
+  // run concurrently with itself (in other subcases).
+  t.device.pushErrorScope('validation');
+
   const checkResults = [];
   for (let i = 0; i < cases.length; i += casesPerBatch) {
     const batchCases = cases.slice(i, Math.min(i + casesPerBatch, cases.length));
-    const checkResult = submitBatch(
-    t,
-    expressionBuilder,
-    parameterTypes,
-    returnType,
-    batchCases,
-    cfg.inputSource);
+    checkResults.push(
+    submitBatch(t, expressionBuilder, parameterTypes, returnType, batchCases, cfg.inputSource));
 
-    checkResults.push(checkResult);
   }
 
-  checkResults.forEach((f) => f());
+  // Check GPU validation (shader compilation, pipeline creation, etc) before checking the results.
+  return t.device.popErrorScope().then((error) => {
+    if (error !== null) {
+      t.fail(error.message);
+      return;
+    }
+
+    // Check the results
+    checkResults.forEach((f) => f());
+  });
 }
 
 /**
@@ -219,12 +235,16 @@ inputSource)
   inputSource,
   outputBuffer);
 
+
   const encoder = t.device.createCommandEncoder();
   const pass = encoder.beginComputePass();
   pass.setPipeline(pipeline);
   pass.setBindGroup(0, group);
   pass.dispatchWorkgroups(1);
   pass.end();
+
+  // Heartbeat to ensure CTS runners know we're alive.
+  globalTestConfig.testHeartbeatCallback();
 
   t.queue.submit([encoder.finish()]);
 
@@ -254,6 +274,9 @@ inputSource)
 
       return errs.length > 0 ? new Error(errs.join('\n\n')) : undefined;
     };
+
+    // Heartbeat to ensure CTS runners know we're alive.
+    globalTestConfig.testHeartbeatCallback();
 
     t.expectGPUBufferValuesPassCheck(outputBuffer, checkExpectation, {
       type: Uint8Array,
@@ -535,12 +558,10 @@ vectorWidth)
  * @param param the param to pass into the unary operation
  * @param ops callbacks that implement generating an acceptance interval for a unary operation
  */
-export function makeUnaryF32IntervalCase(param, ...ops) {
+export function makeUnaryToF32IntervalCase(param, ...ops) {
   param = quantizeToF32(param);
-  const intervals = new Array();
-  for (const op of ops) {
-    intervals.push(op(param));
-  }
+
+  const intervals = ops.map((o) => o(param));
   return { input: [f32(param)], expected: anyOf(...intervals) };
 }
 
@@ -551,17 +572,15 @@ export function makeUnaryF32IntervalCase(param, ...ops) {
  * @param param1 the second param or rhs hand side to pass into the binary operation
  * @param ops callbacks that implement generating an acceptance interval for a binary operation
  */
-export function makeBinaryF32IntervalCase(
+export function makeBinaryToF32IntervalCase(
 param0,
 param1,
 ...ops)
 {
   param0 = quantizeToF32(param0);
   param1 = quantizeToF32(param1);
-  const intervals = new Array();
-  for (const op of ops) {
-    intervals.push(op(param0, param1));
-  }
+
+  const intervals = ops.map((o) => o(param0, param1));
   return { input: [f32(param0), f32(param1)], expected: anyOf(...intervals) };
 }
 
@@ -574,7 +593,7 @@ param1,
  * @param ops callbacks that implement generating an acceptance interval for a
  *           ternary operation.
  */
-export function makeTernaryF32IntervalCase(
+export function makeTernaryToF32IntervalCase(
 param0,
 param1,
 param2,
@@ -583,12 +602,68 @@ param2,
   param0 = quantizeToF32(param0);
   param1 = quantizeToF32(param1);
   param2 = quantizeToF32(param2);
-  const intervals = new Array();
-  for (const op of ops) {
-    intervals.push(op(param0, param1, param2));
-  }
+
+  const intervals = ops.map((o) => o(param0, param1, param2));
   return {
     input: [f32(param0), f32(param1), f32(param2)],
+    expected: anyOf(...intervals) };
+
+}
+
+/**
+ * Generates a Case for the param and vector interval generator provided.
+ * @param param the param to pass into the operation
+ * @param ops callbacks that implement generating an acceptance interval for a
+ *            vector.
+ */
+export function makeVectorToF32IntervalCase(param, ...ops) {
+  param = param.map(quantizeToF32);
+  const param_f32 = param.map(f32);
+
+  const intervals = ops.map((o) => o(param));
+  return {
+    input: [new Vector(param_f32)],
+    expected: anyOf(...intervals) };
+
+}
+
+/**
+ * Generates a Case for the params and vector pair interval generator provided.
+ * @param param0 the first param to pass into the operation
+ * @param param1 the second param to pass into the operation
+ * @param ops callbacks that implement generating an acceptance interval for a
+ *            pair of vectors.
+ */
+export function makeVectorPairToF32IntervalCase(
+param0,
+param1,
+...ops)
+{
+  param0 = param0.map(quantizeToF32);
+  param1 = param1.map(quantizeToF32);
+  const param0_f32 = param0.map(f32);
+  const param1_f32 = param1.map(f32);
+
+  const intervals = ops.map((o) => o(param0, param1));
+  return {
+    input: [new Vector(param0_f32), new Vector(param1_f32)],
+    expected: anyOf(...intervals) };
+
+}
+
+/**
+ * Generates a Case for the param and vector of intervals generator provided.
+ * @param param the param to pass into the operation
+ * @param ops callbacks that implement generating an vector of acceptance intervals for a
+ *            vector.
+ */
+export function makeVectorToVectorIntervalCase(param, ...ops) {
+  param = param.map(quantizeToF32);
+  const param_f32 = param.map(f32);
+
+  const intervals = ops.map((o) => o(param));
+  return {
+    input: [new Vector(param_f32)],
     expected: anyOf(...intervals) };
 
 }
