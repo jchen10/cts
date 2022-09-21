@@ -10,7 +10,6 @@ import {
   kBufferUsages,
 } from '../../../capability_info.js';
 import { GPUConst } from '../../../constants.js';
-import { kMaxSafeMultipleOf8 } from '../../../util/math.js';
 import { ValidationTest } from '../validation_test.js';
 
 export const g = makeTestGroup(ValidationTest);
@@ -75,29 +74,3 @@ g.test('usage')
   });
 
 const BufferUsage = GPUConst.BufferUsage;
-
-g.test('createBuffer_invalid_and_oom')
-  .desc(
-    `When creating a mappable buffer, it's expected that shmem may be immediately allocated
-(in the content process, before validation occurs in the GPU process). If the buffer is really
-large, though, it could fail shmem allocation before validation fails. Ensure that OOM error is
-hidden behind the "more severe" validation error.`
-  )
-  .paramsSubcasesOnly(u =>
-    u.combineWithParams([
-      { _valid: true, usage: BufferUsage.UNIFORM, size: 16 },
-      { _valid: true, usage: BufferUsage.STORAGE, size: 16 },
-      // Invalid because UNIFORM is not allowed with map usages.
-      { usage: BufferUsage.MAP_WRITE | BufferUsage.UNIFORM, size: 16 },
-      { usage: BufferUsage.MAP_WRITE | BufferUsage.UNIFORM, size: kMaxSafeMultipleOf8 },
-      { usage: BufferUsage.MAP_WRITE | BufferUsage.UNIFORM, size: 0x20_0000_0000 }, // 128 GiB
-      { usage: BufferUsage.MAP_READ | BufferUsage.UNIFORM, size: 16 },
-      { usage: BufferUsage.MAP_READ | BufferUsage.UNIFORM, size: kMaxSafeMultipleOf8 },
-      { usage: BufferUsage.MAP_READ | BufferUsage.UNIFORM, size: 0x20_0000_0000 }, // 128 GiB
-    ] as const)
-  )
-  .fn(t => {
-    const { _valid, usage, size } = t.params;
-
-    t.expectGPUError('validation', () => t.device.createBuffer({ size, usage }), !_valid);
-  });
