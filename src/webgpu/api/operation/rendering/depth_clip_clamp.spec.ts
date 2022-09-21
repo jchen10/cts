@@ -40,6 +40,7 @@ have unexpected values then get drawn to the color buffer, which is later checke
       .combine('unclippedDepth', [undefined, false, true])
       .combine('writeDepth', [false, true])
       .combine('multisampled', [false, true])
+      .unless(p => p !== undefined)
   )
   .beforeAllSubcases(t => {
     const info = kTextureFormatInfo[t.params.format];
@@ -355,6 +356,7 @@ to be empty.`
       .filter(p => kTextureFormatInfo[p.format].depth)
       .combine('unclippedDepth', [false, true])
       .combine('multisampled', [false, true])
+      .unless(p => p !== undefined)
   )
   .beforeAllSubcases(t => {
     const info = kTextureFormatInfo[t.params.format];
