@@ -262,7 +262,7 @@ export const kRenderableColorTextureFormats = kRegularTextureFormats.filter(
 );
 
 // The formats of GPUTextureFormat for canvas context.
-export const kCanvasTextureFormats = ['bgra8unorm', 'rgba8unorm', 'rgba16float'] as const;
+export const kCanvasTextureFormats = ['bgra8unorm', 'rgba8unorm'] as const;
 
 // The alpha mode for canvas context.
 export const kCanvasAlphaModes = ['opaque', 'premultiplied'] as const;
