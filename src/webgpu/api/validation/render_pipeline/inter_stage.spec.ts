@@ -216,7 +216,7 @@ g.test('max_shader_variable_location')
     u
       .combine('isAsync', [false, true])
       // User defined variable location = maxInterStageShaderVariables + locationDelta
-      .combine('locationDelta', [0, -1, -2])
+      .combine('locationDelta', [0, -2])
   )
   .fn(async t => {
     const { isAsync, locationDelta } = t.params;
@@ -238,10 +238,8 @@ g.test('max_components_count,output')
   .params(u =>
     u.combine('isAsync', [false, true]).combineWithParams([
       // Number of user-defined output scalar components in test shader = device.limits.maxInterStageShaderComponents + numScalarDelta.
-      { numScalarDelta: 0, topology: 'triangle-list', _success: true },
       { numScalarDelta: 1, topology: 'triangle-list', _success: false },
       { numScalarDelta: 0, topology: 'point-list', _success: false },
-      { numScalarDelta: -1, topology: 'point-list', _success: true },
     ] as const)
   )
   .fn(async t => {
@@ -280,10 +278,8 @@ g.test('max_components_count,input')
   .params(u =>
     u.combine('isAsync', [false, true]).combineWithParams([
       // Number of user-defined input scalar components in test shader = device.limits.maxInterStageShaderComponents + numScalarDelta.
-      { numScalarDelta: 0, useExtraBuiltinInputs: false, _success: true },
       { numScalarDelta: 1, useExtraBuiltinInputs: false, _success: false },
       { numScalarDelta: 0, useExtraBuiltinInputs: true, _success: false },
-      { numScalarDelta: -3, useExtraBuiltinInputs: true, _success: true },
       { numScalarDelta: -2, useExtraBuiltinInputs: true, _success: false },
     ] as const)
   )
