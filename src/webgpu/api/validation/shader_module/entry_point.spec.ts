@@ -23,8 +23,6 @@ export const g = makeTestGroup(ValidationTest);
 const kEntryPointTestCases = [
   { shaderModuleEntryPoint: 'main', stageEntryPoint: 'main' },
   { shaderModuleEntryPoint: 'main', stageEntryPoint: '' },
-  { shaderModuleEntryPoint: 'main', stageEntryPoint: 'main\0' },
-  { shaderModuleEntryPoint: 'main', stageEntryPoint: 'main\0a' },
   { shaderModuleEntryPoint: 'main', stageEntryPoint: 'mian' },
   { shaderModuleEntryPoint: 'main', stageEntryPoint: 'main ' },
   { shaderModuleEntryPoint: 'main', stageEntryPoint: 'ma in' },
