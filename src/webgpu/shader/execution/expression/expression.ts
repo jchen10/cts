@@ -63,7 +63,7 @@ export type InputSource =
   | 'storage_rw'; // Read-write storage buffer
 
 /** All possible input sources */
-export const allInputSources: InputSource[] = ['const', 'uniform', 'storage_r', 'storage_rw'];
+export const allInputSources: InputSource[] = ['uniform', 'storage_r', 'storage_rw'];
 
 /** Configuration for running a expression test */
 export type Config = {
