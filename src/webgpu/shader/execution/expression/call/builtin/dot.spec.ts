@@ -67,56 +67,6 @@ g.test('f32_vec2')
     );
   });
 
-g.test('f32_vec3')
-  .specURL('https://www.w3.org/TR/WGSL/#vector-builtin-functions')
-  .desc(`f32 tests using vec3s`)
-  .params(u => u.combine('inputSource', allInputSources))
-  .fn(async t => {
-    const makeCase = (x: number[], y: number[]): Case => {
-      return makeVectorPairToF32IntervalCase(x, y, dotInterval);
-    };
-
-    const cases: Case[] = kVectorTestValues[3].flatMap(i => {
-      return kVectorTestValues[3].map(j => {
-        return makeCase(i, j);
-      });
-    });
-
-    await run(
-      t,
-      builtin('dot'),
-      [TypeVec(3, TypeF32), TypeVec(3, TypeF32)],
-      TypeF32,
-      t.params,
-      cases
-    );
-  });
-
-g.test('f32_vec4')
-  .specURL('https://www.w3.org/TR/WGSL/#vector-builtin-functions')
-  .desc(`f32 tests using vec4s`)
-  .params(u => u.combine('inputSource', allInputSources))
-  .fn(async t => {
-    const makeCase = (x: number[], y: number[]): Case => {
-      return makeVectorPairToF32IntervalCase(x, y, dotInterval);
-    };
-
-    const cases: Case[] = kVectorTestValues[4].flatMap(i => {
-      return kVectorTestValues[4].map(j => {
-        return makeCase(i, j);
-      });
-    });
-
-    await run(
-      t,
-      builtin('dot'),
-      [TypeVec(4, TypeF32), TypeVec(4, TypeF32)],
-      TypeF32,
-      t.params,
-      cases
-    );
-  });
-
 g.test('f16')
   .specURL('https://www.w3.org/TR/WGSL/#vector-builtin-functions')
   .desc(`f16 tests`)
