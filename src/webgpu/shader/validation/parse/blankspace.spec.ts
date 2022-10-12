@@ -8,10 +8,7 @@ export const g = makeTestGroup(ShaderValidationTest);
 g.test('null_characters')
   .desc(`Test that WGSL source containing a null character is rejected.`)
   .params(u =>
-    u
-      .combine('contains_null', [true, false])
-      .combine('placement', ['comment', 'delimiter', 'eol'])
-      .beginSubcases()
+    u.combine('contains_null', [true, false]).combine('placement', ['delimiter']).beginSubcases()
   )
   .fn(t => {
     let code = '';

@@ -459,15 +459,6 @@ const kInvalidIdentifiers = new Set([
   'writeonly',
   'yield',
 ]);
-g.test('identifiers')
-  .desc(`Test that valid identifiers are accepted, and invalid identifiers are rejected.`)
-  .params(u =>
-    u.combine('ident', new Set([...kValidIdentifiers, ...kInvalidIdentifiers])).beginSubcases()
-  )
-  .fn(t => {
-    const code = `var<private> ${t.params.ident} : i32;`;
-    t.expectCompileResult(kValidIdentifiers.has(t.params.ident), code);
-  });
 
 g.test('non_normalized')
   .desc(`Test that identifiers are not unicode normalized`)
