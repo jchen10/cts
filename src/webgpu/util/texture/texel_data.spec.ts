@@ -133,10 +133,14 @@ function makeParam(
   };
 }
 
+const unormFormats = kEncodableTextureFormats.filter(
+  format => format !== 'rgba8unorm-srgb' && format !== 'bgra8unorm-srgb'
+);
+
 g.test('unorm_texel_data_in_shader')
   .params(u =>
     u
-      .combine('format', kEncodableTextureFormats)
+      .combine('format', unormFormats)
       .filter(({ format }) => {
         return (
           kTextureFormatInfo[format].copyDst &&
@@ -306,6 +310,10 @@ TODO: Test NaN, Infinity, -Infinity [1]`
   )
   .fn(doTest);
 
+const ufloatFormats = kEncodableTextureFormats.filter(
+  format => format !== 'rg11b10ufloat' && format !== 'rgb9e5ufloat'
+);
+
 g.test('ufloat_texel_data_in_shader')
   .desc(
     `
@@ -313,7 +321,7 @@ TODO: Test NaN, Infinity [1]`
   )
   .params(u =>
     u
-      .combine('format', kEncodableTextureFormats)
+      .combine('format', ufloatFormats)
       .filter(({ format }) => {
         return (
           kTextureFormatInfo[format].copyDst &&
