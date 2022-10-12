@@ -19,29 +19,3 @@ import { allInputSources, Case, makeUnaryToF32IntervalCase, run } from '../../ex
 import { builtin } from './builtin.js';
 
 export const g = makeTestGroup(GPUTest);
-
-g.test('f32')
-  .specURL('https://www.w3.org/TR/WGSL/#float-builtin-functions')
-  .desc(`f32 tests`)
-  .params(u =>
-    u.combine('inputSource', allInputSources).combine('vectorize', [undefined, 2, 3, 4] as const)
-  )
-  .fn(async t => {
-    const makeCase = (x: number): Case => {
-      return makeUnaryToF32IntervalCase(x, quantizeToF16Interval);
-    };
-
-    const cases = [
-      kValue.f16.negative.min,
-      kValue.f16.negative.max,
-      kValue.f16.subnormal.negative.min,
-      kValue.f16.subnormal.negative.max,
-      kValue.f16.subnormal.positive.min,
-      kValue.f16.subnormal.positive.max,
-      kValue.f16.positive.min,
-      kValue.f16.positive.max,
-      ...fullF32Range(),
-    ].map(makeCase);
-
-    await run(t, builtin('quantizeToF16'), [TypeF32], TypeF32, t.params, cases);
-  });
