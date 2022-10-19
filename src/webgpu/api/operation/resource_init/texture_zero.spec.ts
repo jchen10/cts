@@ -540,9 +540,7 @@ const kTestParams = kUnitCaseParamsBuilder
         format === 'r8snorm' ||
         format === 'r8unorm') &&
         dimension !== '1d') ||
-      ((format === 'rg16sint' || format === 'rgba16sint') &&
-        readMethod === ReadMethod.CopyToTexture &&
-        dimension === '2d')
+        dimension === '2d'
   )
   .combine('nonPowerOfTwo', [false, true])
   .combine('canaryOnCreation', [false, true])
