@@ -39,26 +39,6 @@ type VideoInfo = valueof<typeof kVideoInfo>;
 
 const kVideoExpectations = [
   {
-    videoName: 'red-green.webmvp8.webm',
-    _redExpectation: new Uint8Array([0xd9, 0x00, 0x00, 0xff]),
-    _greenExpectation: new Uint8Array([0x01, 0xef, 0x00, 0xff]),
-  },
-  {
-    videoName: 'red-green.theora.ogv',
-    _redExpectation: new Uint8Array([0xd9, 0x00, 0x00, 0xff]),
-    _greenExpectation: new Uint8Array([0x01, 0xef, 0x00, 0xff]),
-  },
-  {
-    videoName: 'red-green.mp4',
-    _redExpectation: new Uint8Array([0xd9, 0x00, 0x00, 0xff]),
-    _greenExpectation: new Uint8Array([0x01, 0xef, 0x00, 0xff]),
-  },
-  {
-    videoName: 'red-green.bt601.vp9.webm',
-    _redExpectation: new Uint8Array([0xd9, 0x00, 0x00, 0xff]),
-    _greenExpectation: new Uint8Array([0x01, 0xef, 0x00, 0xff]),
-  },
-  {
     videoName: 'red-green.bt709.vp9.webm',
     _redExpectation: new Uint8Array([0xff, 0x00, 0x00, 0xff]),
     _greenExpectation: new Uint8Array([0x00, 0xff, 0x00, 0xff]),
