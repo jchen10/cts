@@ -7,7 +7,7 @@ import {
 kDrawIndirectParametersSize,
 kDrawIndexedIndirectParametersSize } from
 '../../../capability_info.js';
-import { GPUTest } from '../../../gpu_test.js';
+import { GPUTest, TextureTestMixin } from '../../../gpu_test.js';
 
 const filled = new Uint8Array([0, 255, 0, 255]);
 const notFilled = new Uint8Array([0, 0, 0, 0]);
@@ -122,10 +122,10 @@ class F extends GPUTest {
     }
 
     return this.makeBufferWithContents(new Uint32Array(indirectBuffer), GPUBufferUsage.INDIRECT);
-  }}
+  }
+}
 
-
-export const g = makeTestGroup(F);
+export const g = makeTestGroup(TextureTestMixin(F));
 
 g.test('basics').
 desc(
@@ -174,8 +174,8 @@ fn((t) => {
       module: t.device.createShaderModule({
         code: `@vertex fn main(@location(0) pos : vec2<f32>) -> @builtin(position) vec4<f32> {
               return vec4<f32>(pos, 0.0, 1.0);
-          }` }),
-
+          }`
+      }),
       entryPoint: 'main',
       buffers: [
       {
@@ -183,33 +183,33 @@ fn((t) => {
         {
           shaderLocation: 0,
           format: 'float32x2',
-          offset: 0 }],
+          offset: 0
+        }],
 
+        arrayStride: 2 * Float32Array.BYTES_PER_ELEMENT
+      }]
 
-        arrayStride: 2 * Float32Array.BYTES_PER_ELEMENT }] },
-
-
-
+    },
     fragment: {
       module: t.device.createShaderModule({
         code: `@fragment fn main() -> @location(0) vec4<f32> {
             return vec4<f32>(0.0, 1.0, 0.0, 1.0);
-        }` }),
-
+        }`
+      }),
       entryPoint: 'main',
       targets: [
       {
-        format: kRenderTargetFormat }] } });
+        format: kRenderTargetFormat
+      }]
 
-
-
-
+    }
+  });
 
   const renderTarget = t.device.createTexture({
     size: [4, 4],
     usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
-    format: kRenderTargetFormat });
-
+    format: kRenderTargetFormat
+  });
 
   const commandEncoder = t.device.createCommandEncoder();
   const renderPass = commandEncoder.beginRenderPass({
@@ -218,10 +218,10 @@ fn((t) => {
       view: renderTarget.createView(),
       clearValue: [0, 0, 0, 0],
       loadOp: 'clear',
-      storeOp: 'store' }] });
+      storeOp: 'store'
+    }]
 
-
-
+  });
   renderPass.setPipeline(pipeline);
   renderPass.setVertexBuffer(0, vertexBuffer, 0);
 
@@ -234,19 +234,11 @@ fn((t) => {
   renderPass.end();
   t.queue.submit([commandEncoder.finish()]);
 
+  t.expectSinglePixelComparisonsAreOkInTexture({ texture: renderTarget }, [
   // The bottom left area is filled
-  t.expectSinglePixelIn2DTexture(
-  renderTarget,
-  kRenderTargetFormat,
-  { x: 0, y: 1 },
-  { exp: filled });
-
+  { coord: { x: 0, y: 1 }, exp: filled },
   // The top right area is not filled
-  t.expectSinglePixelIn2DTexture(
-  renderTarget,
-  kRenderTargetFormat,
-  { x: 1, y: 0 },
-  { exp: notFilled });
+  { coord: { x: 1, y: 0 }, exp: notFilled }]);
 
 });
 //# sourceMappingURL=indirect_draw.spec.js.map

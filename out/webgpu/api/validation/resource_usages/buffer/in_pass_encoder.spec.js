@@ -37,12 +37,12 @@ export class BufferResourceUsageTest extends ValidationTest {
       visibility:
       resourceVisibility === 'compute' ? GPUShaderStage.COMPUTE : GPUShaderStage.FRAGMENT,
       buffer: {
-        type } };
-
-
+        type
+      }
+    };
     return this.device.createBindGroupLayout({
-      entries: [bindGroupLayoutEntry] });
-
+      entries: [bindGroupLayoutEntry]
+    });
   }
 
   createBindGroupForTest(
@@ -56,27 +56,27 @@ export class BufferResourceUsageTest extends ValidationTest {
       entries: [
       {
         binding: 0,
-        resource: { buffer, offset, size: kBoundBufferSize } }] });
+        resource: { buffer, offset, size: kBoundBufferSize }
+      }]
 
-
-
+    });
   }
 
   beginSimpleRenderPass(encoder) {
     const colorTexture = this.device.createTexture({
       format: 'rgba8unorm',
       usage: GPUTextureUsage.RENDER_ATTACHMENT,
-      size: [16, 16, 1] });
-
+      size: [16, 16, 1]
+    });
     return encoder.beginRenderPass({
       colorAttachments: [
       {
         view: colorTexture.createView(),
         loadOp: 'load',
-        storeOp: 'store' }] });
+        storeOp: 'store'
+      }]
 
-
-
+    });
   }
 
   createRenderPipelineForTest(
@@ -91,36 +91,36 @@ export class BufferResourceUsageTest extends ValidationTest {
         {
           format: 'float32',
           shaderLocation: i,
-          offset: 0 }] });
+          offset: 0
+        }]
 
-
-
+      });
     }
 
     return this.device.createRenderPipeline({
       layout: pipelineLayout,
       vertex: {
         module: this.device.createShaderModule({
-          code: this.getNoOpShaderCode('VERTEX') }),
-
+          code: this.getNoOpShaderCode('VERTEX')
+        }),
         entryPoint: 'main',
-        buffers: vertexBuffers },
-
+        buffers: vertexBuffers
+      },
       fragment: {
         module: this.device.createShaderModule({
           code: `
               @fragment fn main()
                 -> @location(0) vec4<f32> {
                   return vec4<f32>(0.0, 0.0, 0.0, 1.0);
-              }` }),
-
+              }`
+        }),
         entryPoint: 'main',
-        targets: [{ format: 'rgba8unorm' }] },
-
-      primitive: { topology: 'point-list' } });
-
-  }}
-
+        targets: [{ format: 'rgba8unorm' }]
+      },
+      primitive: { topology: 'point-list' }
+    });
+  }
+}
 
 function IsBufferUsageInBindGroup(bufferUsage) {
   switch (bufferUsage) {
@@ -156,13 +156,13 @@ combine('visibility0', ['compute', 'fragment']).
 combine('visibility1', ['compute', 'fragment']).
 combine('hasOverlap', [true, false])).
 
-fn(async (t) => {
+fn((t) => {
   const { usage0, usage1, visibility0, visibility1, hasOverlap } = t.params;
 
   const buffer = t.createBufferWithState('valid', {
     size: kBoundBufferSize * 2,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.STORAGE });
-
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.STORAGE
+  });
 
   const encoder = t.device.createCommandEncoder();
   const computePassEncoder = encoder.beginComputePass();
@@ -188,7 +188,11 @@ desc(
 Test that when one buffer is used in one compute pass encoder, its list of internal usages within
 one usage scope can only be a compatible usage list. According to WebGPU SPEC, within one dispatch,
 for each bind group slot that is used by the current GPUComputePipeline's layout, every subresource
-referenced by that bind group is "used" in the usage scope. `).
+referenced by that bind group is "used" in the usage scope.
+
+For both usage === storage, there is writable buffer binding aliasing so we skip this case and will
+have tests covered (https://github.com/gpuweb/cts/issues/2232)
+`).
 
 params((u) =>
 u.
@@ -231,11 +235,16 @@ filter((t) => {
   {
     return false;
   }
+
+  // Avoid writable storage buffer bindings aliasing.
+  if (t.usage0 === 'storage' && t.usage1 === 'storage') {
+    return false;
+  }
   return true;
 }).
 combine('hasOverlap', [true, false])).
 
-fn(async (t) => {
+fn((t) => {
   const {
     usage0AccessibleInDispatch,
     usage1AccessibleInDispatch,
@@ -244,13 +253,13 @@ fn(async (t) => {
     visibility0,
     usage1,
     visibility1,
-    hasOverlap } =
-  t.params;
+    hasOverlap
+  } = t.params;
 
   const buffer = t.createBufferWithState('valid', {
     size: kBoundBufferSize * 2,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT });
-
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT
+  });
 
   const encoder = t.device.createCommandEncoder();
   const computePassEncoder = encoder.beginComputePass();
@@ -273,8 +282,8 @@ fn(async (t) => {
           if (usage0AccessibleInDispatch) {
             const bindGroupLayout0 = t.createBindGroupLayoutForTest(usage0, visibility0);
             pipelineLayout = t.device.createPipelineLayout({
-              bindGroupLayouts: [bindGroupLayout0] });
-
+              bindGroupLayouts: [bindGroupLayout0]
+            });
           }
           const computePipeline = t.createNoOpComputePipeline(pipelineLayout);
           computePassEncoder.setPipeline(computePipeline);
@@ -321,8 +330,8 @@ fn(async (t) => {
           }
           const pipelineLayout = bindGroupLayouts ?
           t.device.createPipelineLayout({
-            bindGroupLayouts }) :
-
+            bindGroupLayouts
+          }) :
           undefined;
           const computePipeline = t.createNoOpComputePipeline(pipelineLayout);
           computePassEncoder.setPipeline(computePipeline);
@@ -340,8 +349,8 @@ fn(async (t) => {
         if (usage0AccessibleInDispatch) {
           assert(usage0 !== 'indirect');
           pipelineLayout = t.device.createPipelineLayout({
-            bindGroupLayouts: [t.createBindGroupLayoutForTest(usage0, visibility0)] });
-
+            bindGroupLayouts: [t.createBindGroupLayoutForTest(usage0, visibility0)]
+          });
         }
         const computePipeline = t.createNoOpComputePipeline(pipelineLayout);
         computePassEncoder.setPipeline(computePipeline);
@@ -381,7 +390,7 @@ beginSubcases().
 combine('inSamePass', [true, false]).
 combine('hasOverlap', [true, false])).
 
-fn(async (t) => {
+fn((t) => {
   const { usage0, usage1, inSamePass, hasOverlap } = t.params;
 
   const UseBufferOnComputePassEncoder = (
@@ -399,8 +408,8 @@ fn(async (t) => {
 
           const bindGroupLayout = t.createBindGroupLayoutForTest(usage, 'compute');
           const pipelineLayout = t.device.createPipelineLayout({
-            bindGroupLayouts: [bindGroupLayout] });
-
+            bindGroupLayouts: [bindGroupLayout]
+          });
           const computePipeline = t.createNoOpComputePipeline(pipelineLayout);
           computePassEncoder.setPipeline(computePipeline);
           computePassEncoder.dispatchWorkgroups(1);
@@ -420,8 +429,8 @@ fn(async (t) => {
 
   const buffer = t.createBufferWithState('valid', {
     size: kBoundBufferSize * 2,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT });
-
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT
+  });
 
   const encoder = t.device.createCommandEncoder();
   const computePassEncoder = encoder.beginComputePass();
@@ -464,7 +473,7 @@ unless((t) => t.visibility0 === 'compute' && !IsBufferUsageInBindGroup(t.usage0)
 combine('visibility1', ['compute', 'fragment']).
 unless((t) => t.visibility1 === 'compute' && !IsBufferUsageInBindGroup(t.usage1))).
 
-fn(async (t) => {
+fn((t) => {
   const { usage0, usage1, hasOverlap, visibility0, visibility1 } = t.params;
 
   const UseBufferOnRenderPassEncoder = (
@@ -503,8 +512,8 @@ fn(async (t) => {
     GPUBufferUsage.UNIFORM |
     GPUBufferUsage.STORAGE |
     GPUBufferUsage.VERTEX |
-    GPUBufferUsage.INDEX });
-
+    GPUBufferUsage.INDEX
+  });
 
   const encoder = t.device.createCommandEncoder();
   const renderPassEncoder = t.beginSimpleRenderPass(encoder);
@@ -526,7 +535,11 @@ desc(
 Test that when one buffer is used in one render pass encoder where there is one draw call, its list
 of internal usages within one usage scope (all the commands in the whole render pass) can only be a
 compatible usage list. The usage scope rules are not related to the buffer offset or the bind group
-layout visibilities.`).
+layout visibilities.
+
+For both usage === storage, there is writable buffer binding aliasing so we skip this case and will
+have tests covered (https://github.com/gpuweb/cts/issues/2232)
+`).
 
 params((u) =>
 u.
@@ -557,6 +570,11 @@ filter((t) => {
   }
   // As usage1 is accessible in the draw call, the draw call cannot be before usage1.
   if (t.drawBeforeUsage1 && t.usage1AccessibleInDraw) {
+    return false;
+  }
+
+  // Avoid writable storage buffer bindings aliasing.
+  if (t.usage0 === 'storage' && t.usage1 === 'storage') {
     return false;
   }
   return true;
@@ -593,7 +611,7 @@ filter((t) => {
 }).
 combine('hasOverlap', [true, false])).
 
-fn(async (t) => {
+fn((t) => {
   const {
     // Buffer with usage0 will be "used" in the draw call if this value is true.
     usage0AccessibleInDraw,
@@ -607,8 +625,8 @@ fn(async (t) => {
     visibility0,
     usage1,
     visibility1,
-    hasOverlap } =
-  t.params;
+    hasOverlap
+  } = t.params;
   const buffer = t.createBufferWithState('valid', {
     size: kBoundBufferSize * 2,
     usage:
@@ -616,8 +634,8 @@ fn(async (t) => {
     GPUBufferUsage.STORAGE |
     GPUBufferUsage.VERTEX |
     GPUBufferUsage.INDEX |
-    GPUBufferUsage.INDIRECT });
-
+    GPUBufferUsage.INDIRECT
+  });
 
   const UseBufferOnRenderPassEncoder = (
   bufferAccessibleInDraw,
@@ -678,8 +696,8 @@ fn(async (t) => {
       case 'indexedIndirect':{
           const indexBuffer = t.device.createBuffer({
             size: 4,
-            usage: GPUBufferUsage.INDEX });
-
+            usage: GPUBufferUsage.INDEX
+          });
           renderPassEncoder.setIndexBuffer(indexBuffer, 'uint16');
           renderPassEncoder.drawIndexedIndirect(buffer, offset);
           break;
@@ -711,8 +729,8 @@ fn(async (t) => {
   // Set pipeline and do draw call if drawBeforeUsage1 === true
   if (drawBeforeUsage1) {
     const pipelineLayout = t.device.createPipelineLayout({
-      bindGroupLayouts: usedBindGroupLayouts });
-
+      bindGroupLayouts: usedBindGroupLayouts
+    });
     // To "use" the vertex buffer we need to set the corresponding vertex buffer layout when
     // creating the render pipeline.
     if (usage0 === 'vertex' && usage0AccessibleInDraw) {
@@ -756,8 +774,8 @@ fn(async (t) => {
   // Set pipeline and do draw call if drawBeforeUsage1 === false
   if (!drawBeforeUsage1) {
     const pipelineLayout = t.device.createPipelineLayout({
-      bindGroupLayouts: usedBindGroupLayouts });
-
+      bindGroupLayouts: usedBindGroupLayouts
+    });
     if (usage1 === 'vertex' && usage1AccessibleInDraw) {
       // To "use" the vertex buffer we need to set the corresponding vertex buffer layout when
       // creating the render pipeline.
@@ -780,8 +798,8 @@ fn(async (t) => {
         if (usage0 !== 'index') {
           const indexBuffer = t.createBufferWithState('valid', {
             size: 4,
-            usage: GPUBufferUsage.INDEX });
-
+            usage: GPUBufferUsage.INDEX
+          });
           renderPassEncoder.setIndexBuffer(indexBuffer, 'uint16');
         }
         renderPassEncoder.drawIndexedIndirect(buffer, offset1);
@@ -820,7 +838,7 @@ beginSubcases().
 combine('inSamePass', [true, false]).
 combine('hasOverlap', [true, false])).
 
-fn(async (t) => {
+fn((t) => {
   const { usage0, usage1, inSamePass, hasOverlap } = t.params;
   const buffer = t.createBufferWithState('valid', {
     size: kBoundBufferSize * 2,
@@ -829,8 +847,8 @@ fn(async (t) => {
     GPUBufferUsage.STORAGE |
     GPUBufferUsage.VERTEX |
     GPUBufferUsage.INDEX |
-    GPUBufferUsage.INDIRECT });
-
+    GPUBufferUsage.INDIRECT
+  });
   const UseBufferOnRenderPassEncoderInDrawCall = (
   offset,
   usage,
@@ -842,8 +860,8 @@ fn(async (t) => {
       case 'read-only-storage':{
           const bindGroupLayout = t.createBindGroupLayoutForTest(usage, 'fragment');
           const pipelineLayout = t.device.createPipelineLayout({
-            bindGroupLayouts: [bindGroupLayout] });
-
+            bindGroupLayouts: [bindGroupLayout]
+          });
           const pipeline = t.createRenderPipelineForTest(pipelineLayout, 0);
           renderPassEncoder.setPipeline(pipeline);
           const bindGroup = t.createBindGroupForTest(buffer, offset, usage, 'fragment');
@@ -877,8 +895,8 @@ fn(async (t) => {
           renderPassEncoder.setPipeline(pipeline);
           const indexBuffer = t.createBufferWithState('valid', {
             size: 4,
-            usage: GPUBufferUsage.INDEX });
-
+            usage: GPUBufferUsage.INDEX
+          });
           renderPassEncoder.setIndexBuffer(indexBuffer, 'uint16');
           renderPassEncoder.drawIndexedIndirect(buffer, offset);
           break;

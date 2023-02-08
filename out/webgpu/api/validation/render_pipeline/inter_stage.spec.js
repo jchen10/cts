@@ -25,10 +25,10 @@ class InterStageMatchingValidationTest extends CreateRenderPipelineValidationTes
             vertexOut.pos = vec4<f32>(0.0, 0.0, 0.0, 1.0);
             return vertexOut;
         }
-        ` }),
-
-      entryPoint: 'main' };
-
+        `
+      }),
+      entryPoint: 'main'
+    };
   }
 
   getFragmentStateWithInputs(
@@ -46,10 +46,10 @@ class InterStageMatchingValidationTest extends CreateRenderPipelineValidationTes
         @fragment fn main(fragmentIn: B) -> @location(0) vec4<f32> {
             return vec4<f32>(1.0, 1.0, 1.0, 1.0);
         }
-        ` }),
-
-      entryPoint: 'main' };
-
+        `
+      }),
+      entryPoint: 'main'
+    };
   }
 
   getDescriptorWithStates(
@@ -59,10 +59,10 @@ class InterStageMatchingValidationTest extends CreateRenderPipelineValidationTes
     return {
       layout: 'auto',
       vertex,
-      fragment };
-
-  }}
-
+      fragment
+    };
+  }
+}
 
 export const g = makeTestGroup(InterStageMatchingValidationTest);
 
@@ -76,16 +76,16 @@ u.combine('isAsync', [false, true]).combineWithParams([
 {
   outputs: ['@location(0) __: f32', '@location(1) __: f32'],
   inputs: ['@location(1) __: f32', '@location(0) __: f32'],
-  _success: true },
-
+  _success: true
+},
 {
   outputs: ['@location(1) __: f32', '@location(0) __: f32'],
   inputs: ['@location(0) __: f32', '@location(1) __: f32'],
-  _success: true }])).
+  _success: true
+}])).
 
 
-
-fn(async (t) => {
+fn((t) => {
   const { isAsync, outputs, inputs, _success } = t.params;
 
   const descriptor = t.getDescriptorWithStates(
@@ -103,7 +103,7 @@ unimplemented();
 g.test('location,subset').
 desc(`Tests that validation should fail when vertex output is a subset of fragment input.`).
 params((u) => u.combine('isAsync', [false, true])).
-fn(async (t) => {
+fn((t) => {
   const { isAsync } = t.params;
 
   const descriptor = t.getDescriptorWithStates(
@@ -132,7 +132,7 @@ u.combine('isAsync', [false, true]).combineWithParams([
 { output: 'f32', input: 'vec2<f32>' }])).
 
 
-fn(async (t) => {
+fn((t) => {
   const { isAsync, output, input } = t.params;
 
   const descriptor = t.getDescriptorWithStates(
@@ -162,7 +162,7 @@ u.combine('isAsync', [false, true]).combineWithParams([
 { output: '@interpolate(linear, center)', input: '@interpolate(linear, center)' }])).
 
 
-fn(async (t) => {
+fn((t) => {
   const { isAsync, output, input, _success } = t.params;
 
   const descriptor = t.getDescriptorWithStates(
@@ -184,20 +184,20 @@ u.combine('isAsync', [false, true]).combineWithParams([
 {
   output: '@interpolate(perspective)',
   input: '@interpolate(perspective, center)',
-  _success: true },
-
+  _success: true
+},
 { output: '@interpolate(linear, center)', input: '@interpolate(linear)', _success: true },
 { output: '@interpolate(flat)', input: '@interpolate(flat)' },
 { output: '@interpolate(perspective)', input: '@interpolate(perspective, sample)' },
 { output: '@interpolate(perspective, center)', input: '@interpolate(perspective, sample)' },
 {
   output: '@interpolate(perspective, center)',
-  input: '@interpolate(perspective, centroid)' },
-
+  input: '@interpolate(perspective, centroid)'
+},
 { output: '@interpolate(perspective, centroid)', input: '@interpolate(perspective)' }])).
 
 
-fn(async (t) => {
+fn((t) => {
   const { isAsync, output, input, _success } = t.params;
 
   const descriptor = t.getDescriptorWithStates(
@@ -218,7 +218,7 @@ combine('isAsync', [false, true])
 // User defined variable location = maxInterStageShaderVariables + locationDelta
 .combine('locationDelta', [0, -1, -2])).
 
-fn(async (t) => {
+fn((t) => {
   const { isAsync, locationDelta } = t.params;
   const maxInterStageShaderVariables = t.device.limits.maxInterStageShaderVariables;
   const location = maxInterStageShaderVariables + locationDelta;
@@ -244,7 +244,7 @@ u.combine('isAsync', [false, true]).combineWithParams([
 { numScalarDelta: -1, topology: 'point-list', _success: true }])).
 
 
-fn(async (t) => {
+fn((t) => {
   const { isAsync, numScalarDelta, topology, _success } = t.params;
 
   const numScalarComponents = t.device.limits.maxInterStageShaderComponents + numScalarDelta;
@@ -287,7 +287,7 @@ u.combine('isAsync', [false, true]).combineWithParams([
 { numScalarDelta: -2, useExtraBuiltinInputs: true, _success: false }])).
 
 
-fn(async (t) => {
+fn((t) => {
   const { isAsync, numScalarDelta, useExtraBuiltinInputs, _success } = t.params;
 
   const numScalarComponents = t.device.limits.maxInterStageShaderComponents + numScalarDelta;

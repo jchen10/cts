@@ -33,7 +33,7 @@ combine('groupIndices', [
 { a: 1, b: 0, out: 2 }])).
 
 
-fn(async (t) => {
+fn((t) => {
   const { encoderType, groupIndices } = t.params;
 
   const pipeline = t.createBindingStatePipeline(encoderType, groupIndices);
@@ -48,8 +48,8 @@ fn(async (t) => {
     t.makeBufferWithContents(new Int32Array([2]), kBufferUsage),
     'read-only-storage'),
 
-    out: t.createBindGroup(out, 'storage') };
-
+    out: t.createBindGroup(out, 'storage')
+  };
 
   const { encoder, validateFinishAndSubmit } = t.createEncoder(encoderType);
 
@@ -82,7 +82,7 @@ combine('setOrder', [
 ['out', 'b', 'a']])).
 
 
-fn(async (t) => {
+fn((t) => {
   const { encoderType, setOrder } = t.params;
 
   const groupIndices = { a: 0, b: 1, out: 2 };
@@ -98,8 +98,8 @@ fn(async (t) => {
     t.makeBufferWithContents(new Int32Array([2]), kBufferUsage),
     'read-only-storage'),
 
-    out: t.createBindGroup(out, 'storage') };
-
+    out: t.createBindGroup(out, 'storage')
+  };
 
   const { encoder, validateFinishAndSubmit } = t.createEncoder(encoderType);
   t.setPipeline(encoder, pipeline);
@@ -131,7 +131,7 @@ combineWithParams([
 { setBefore: ['a', 'b', 'out'], setAfter: [] }])).
 
 
-fn(async (t) => {
+fn((t) => {
   const { encoderType, setBefore, setAfter } = t.params;
   const groupIndices = { a: 0, b: 1, out: 2 };
   const pipeline = t.createBindingStatePipeline(encoderType, groupIndices);
@@ -146,8 +146,8 @@ fn(async (t) => {
     t.makeBufferWithContents(new Int32Array([2]), kBufferUsage),
     'read-only-storage'),
 
-    out: t.createBindGroup(out, 'storage') };
-
+    out: t.createBindGroup(out, 'storage')
+  };
 
   const { encoder, validateFinishAndSubmit } = t.createEncoder(encoderType);
 
@@ -177,7 +177,7 @@ params((u) =>
 u //
 .combine('encoderType', kProgrammableEncoderTypes)).
 
-fn(async (t) => {
+fn((t) => {
   const { encoderType } = t.params;
   const pipeline = t.createBindingStatePipeline(encoderType, { a: 0, b: 1, out: 2 });
 
@@ -187,8 +187,8 @@ fn(async (t) => {
     t.makeBufferWithContents(new Int32Array([3]), kBufferUsage),
     'read-only-storage'),
 
-    out: t.createBindGroup(out, 'storage') };
-
+    out: t.createBindGroup(out, 'storage')
+  };
 
   const { encoder, validateFinishAndSubmit } = t.createEncoder(encoderType);
   t.setPipeline(encoder, pipeline);
@@ -213,7 +213,7 @@ params((u) =>
 u //
 .combine('encoderType', kProgrammableEncoderTypes)).
 
-fn(async (t) => {
+fn((t) => {
   const { encoderType } = t.params;
   const pipeline = t.createBindingStatePipeline(encoderType, { a: 0, b: 1, out: 2 });
 
@@ -233,8 +233,8 @@ fn(async (t) => {
     'read-only-storage'),
 
     badOut: t.createBindGroup(badOut, 'storage'),
-    out: t.createBindGroup(out, 'storage') };
-
+    out: t.createBindGroup(out, 'storage')
+  };
 
   const { encoder, validateFinishAndSubmit } = t.createEncoder(encoderType);
 
@@ -263,7 +263,7 @@ params((u) =>
 u //
 .combine('encoderType', kProgrammableEncoderTypes)).
 
-fn(async (t) => {
+fn((t) => {
   const { encoderType } = t.params;
   const pipelineA = t.createBindingStatePipeline(encoderType, { a: 0, b: 1, out: 2 });
   const pipelineB = t.createBindingStatePipeline(
@@ -284,8 +284,8 @@ fn(async (t) => {
     'read-only-storage'),
 
     outA: t.createBindGroup(outA, 'storage'),
-    outB: t.createBindGroup(outB, 'storage') };
-
+    outB: t.createBindGroup(outB, 'storage')
+  };
 
   const { encoder, validateFinishAndSubmit } = t.createEncoder(encoderType);
   encoder.setBindGroup(0, bindGroups.a);

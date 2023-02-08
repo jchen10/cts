@@ -60,7 +60,7 @@ g.test('depth_stencil_format,copy_usage_and_aspect')
     const { format } = t.params;
     t.selectDeviceForTextureFormatOrSkipTestCase(format);
   })
-  .fn(async t => {
+  .fn(t => {
     const { format, aspect } = t.params;
 
     const textureSize = { width: 1, height: 1, depthOrArrayLayers: 1 };
@@ -125,7 +125,7 @@ g.test('depth_stencil_format,copy_buffer_size')
     const { format } = t.params;
     t.selectDeviceForTextureFormatOrSkipTestCase(format);
   })
-  .fn(async t => {
+  .fn(t => {
     const { format, aspect, copyType, copySize } = t.params;
 
     const texture = t.device.createTexture({
@@ -149,7 +149,6 @@ g.test('depth_stencil_format,copy_buffer_size')
       size: minimumBufferSize,
       usage: GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
     });
-
     const smallerBuffer = t.device.createBuffer({
       size: minimumBufferSize - kBufferCopyAlignment,
       usage: GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
@@ -193,7 +192,6 @@ g.test('depth_stencil_format,copy_buffer_size')
           bytesPerRow,
           rowsPerImage,
         },
-
         copySize,
         true
       );
@@ -205,7 +203,6 @@ g.test('depth_stencil_format,copy_buffer_size')
           bytesPerRow,
           rowsPerImage,
         },
-
         copySize,
         false
       );
@@ -237,7 +234,7 @@ g.test('depth_stencil_format,copy_buffer_offset')
     const { format } = t.params;
     t.selectDeviceForTextureFormatOrSkipTestCase(format);
   })
-  .fn(async t => {
+  .fn(t => {
     const { format, aspect, copyType, offset } = t.params;
 
     const textureSize = { width: 4, height: 4, depthOrArrayLayers: 1 };
@@ -290,7 +287,6 @@ g.test('depth_stencil_format,copy_buffer_offset')
           bytesPerRow,
           rowsPerImage,
         },
-
         textureSize,
         isSuccess
       );
@@ -313,7 +309,7 @@ g.test('sample_count')
       .beginSubcases()
       .combine('sampleCount', [1, 4])
   )
-  .fn(async t => {
+  .fn(t => {
     const { sampleCount, copyType } = t.params;
 
     let usage = GPUTextureUsage.COPY_SRC | GPUTextureUsage.COPY_DST;
@@ -349,7 +345,6 @@ const kRequiredTextureUsage = {
   CopyT2B: GPUConst.TextureUsage.COPY_SRC,
   CopyB2T: GPUConst.TextureUsage.COPY_DST,
 };
-
 const kRequiredBufferUsage = {
   CopyB2T: GPUConst.BufferUsage.COPY_SRC,
   CopyT2B: GPUConst.BufferUsage.COPY_DST,
@@ -373,7 +368,7 @@ g.test('texture_buffer_usages')
       .expand('_bufferUsageValid', p => [p.bufferUsage === kRequiredBufferUsage[p.copyType]])
       .filter(p => p._textureUsageValid || p._bufferUsageValid)
   )
-  .fn(async t => {
+  .fn(t => {
     const { copyType, textureUsage, _textureUsageValid, bufferUsage, _bufferUsageValid } = t.params;
 
     const texture = t.device.createTexture({
@@ -418,7 +413,7 @@ g.test('device_mismatch')
   .beforeAllSubcases(t => {
     t.selectMismatchedDeviceOrSkipTestCase(undefined);
   })
-  .fn(async t => {
+  .fn(t => {
     const { copyType, bufMismatched, texMismatched } = t.params;
 
     const uploadBufferSize = 32;
@@ -426,7 +421,6 @@ g.test('device_mismatch')
       size: uploadBufferSize,
       usage: GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
     });
-
     t.trackForCleanup(buffer);
 
     const textureSize = { width: 1, height: 1, depthOrArrayLayers: 1 };
@@ -435,7 +429,6 @@ g.test('device_mismatch')
       format: 'rgba8unorm',
       usage: GPUTextureUsage.COPY_SRC | GPUTextureUsage.COPY_DST,
     });
-
     t.trackForCleanup(texture);
 
     const isValid = !bufMismatched && !texMismatched;

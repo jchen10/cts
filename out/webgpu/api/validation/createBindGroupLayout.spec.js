@@ -12,6 +12,7 @@ kShaderStages,
 kShaderStageCombinations,
 kStorageTextureAccessValues,
 kTextureFormatInfo,
+kTextureSampleTypes,
 kTextureViewDimensions,
 allBindingEntries,
 bindingTypeInfo,
@@ -34,7 +35,7 @@ paramsSubcasesOnly([
 { bindings: [0, 1], _valid: true },
 { bindings: [0, 0], _valid: false }]).
 
-fn(async (t) => {
+fn((t) => {
   const { bindings, _valid } = t.params;
   const entries = [];
 
@@ -42,14 +43,14 @@ fn(async (t) => {
     entries.push({
       binding,
       visibility: GPUShaderStage.COMPUTE,
-      buffer: { type: 'storage' } });
-
+      buffer: { type: 'storage' }
+    });
   }
 
   t.expectValidationError(() => {
     t.device.createBindGroupLayout({
-      entries });
-
+      entries
+    });
   }, !_valid);
 });
 
@@ -69,22 +70,22 @@ paramsSubcasesOnly((u) =>
 u //
 .combine('binding', [1, 4, 8, 256, kMaxBindingsPerBindGroup - 1, kMaxBindingsPerBindGroup])).
 
-fn(async (t) => {
+fn((t) => {
   const { binding } = t.params;
   const entries = [];
 
   entries.push({
     binding,
     visibility: GPUShaderStage.COMPUTE,
-    buffer: { type: 'storage' } });
-
+    buffer: { type: 'storage' }
+  });
 
   const success = binding < kMaxBindingsPerBindGroup;
 
   t.expectValidationError(() => {
     t.device.createBindGroupLayout({
-      entries });
-
+      entries
+    });
   }, !success);
 });
 
@@ -101,7 +102,7 @@ combine('visibility', kShaderStageCombinations).
 beginSubcases().
 combine('entry', allBindingEntries(false))).
 
-fn(async (t) => {
+fn((t) => {
   const { visibility, entry } = t.params;
   const info = bindingTypeInfo(entry);
 
@@ -109,8 +110,8 @@ fn(async (t) => {
 
   t.expectValidationError(() => {
     t.device.createBindGroupLayout({
-      entries: [{ binding: 0, visibility, ...entry }] });
-
+      entries: [{ binding: 0, visibility, ...entry }]
+    });
   }, !success);
 });
 
@@ -127,7 +128,7 @@ u //
 beginSubcases().
 combine('type', kBufferBindingTypes)).
 
-fn(async (t) => {
+fn((t) => {
   const { shaderStage, type } = t.params;
 
   const success = !(type === 'storage' && shaderStage & GPUShaderStage.VERTEX);
@@ -138,10 +139,10 @@ fn(async (t) => {
       {
         binding: 0,
         visibility: shaderStage,
-        buffer: { type } }] });
+        buffer: { type }
+      }]
 
-
-
+    });
   }, !success);
 });
 
@@ -158,7 +159,7 @@ u //
 beginSubcases().
 combine('access', [undefined, ...kStorageTextureAccessValues])).
 
-fn(async (t) => {
+fn((t) => {
   const { shaderStage, access } = t.params;
 
   const success = !(
@@ -171,23 +172,32 @@ fn(async (t) => {
       {
         binding: 0,
         visibility: shaderStage,
-        storageTexture: { access, format: 'rgba8unorm' } }] });
+        storageTexture: { access, format: 'rgba8unorm' }
+      }]
 
-
-
+    });
   }, !success);
 });
 
 g.test('multisampled_validation').
-desc('Test that multisampling is only allowed with "2d" view dimensions.').
-paramsSubcasesOnly((u) =>
+desc(
+`
+  Test that multisampling is only allowed if view dimensions is "2d" and the sampleType is not
+  "float".
+  `).
+
+params((u) =>
 u //
-.combine('viewDimension', [undefined, ...kTextureViewDimensions])).
+.combine('viewDimension', [undefined, ...kTextureViewDimensions]).
+beginSubcases().
+combine('sampleType', [undefined, ...kTextureSampleTypes])).
 
-fn(async (t) => {
-  const { viewDimension } = t.params;
+fn((t) => {
+  const { viewDimension, sampleType } = t.params;
 
-  const success = viewDimension === '2d' || viewDimension === undefined;
+  const success =
+  (viewDimension === '2d' || viewDimension === undefined) &&
+  (sampleType ?? 'float') !== 'float';
 
   t.expectValidationError(() => {
     t.device.createBindGroupLayout({
@@ -195,10 +205,10 @@ fn(async (t) => {
       {
         binding: 0,
         visibility: GPUShaderStage.COMPUTE,
-        texture: { multisampled: true, viewDimension } }] });
+        texture: { multisampled: true, viewDimension, sampleType }
+      }]
 
-
-
+    });
   }, !success);
 });
 
@@ -217,7 +227,7 @@ beginSubcases().
 combine('extraDynamicBuffers', [0, 1]).
 combine('staticBuffers', [0, 1])).
 
-fn(async (t) => {
+fn((t) => {
   const { type, extraDynamicBuffers, staticBuffers } = t.params;
   const info = bufferBindingTypeInfo({ type });
 
@@ -228,21 +238,21 @@ fn(async (t) => {
     entries.push({
       binding: i,
       visibility: GPUShaderStage.COMPUTE,
-      buffer: { type, hasDynamicOffset: true } });
-
+      buffer: { type, hasDynamicOffset: true }
+    });
   }
 
   for (let i = dynamicBufferCount; i < dynamicBufferCount + staticBuffers; i++) {
     entries.push({
       binding: i,
       visibility: GPUShaderStage.COMPUTE,
-      buffer: { type, hasDynamicOffset: false } });
-
+      buffer: { type, hasDynamicOffset: false }
+    });
   }
 
   const descriptor = {
-    entries };
-
+    entries
+  };
 
   t.expectValidationError(() => {
     t.device.createBindGroupLayout(descriptor);
@@ -297,7 +307,7 @@ desc(
     - TODO(#230): Update to enforce per-stage and per-pipeline-layout limits on BGLs as well.`).
 
 params(kMaxResourcesCases).
-fn(async (t) => {
+fn((t) => {
   const { maxedEntry, extraEntry, maxedVisibility, extraVisibility } = t.params;
   const maxedTypeInfo = bindingTypeInfo(maxedEntry);
   const maxedCount = maxedTypeInfo.perStageLimitClass.max;
@@ -308,8 +318,8 @@ fn(async (t) => {
     maxResourceBindings.push({
       binding: i,
       visibility: maxedVisibility,
-      ...maxedEntry });
-
+      ...maxedEntry
+    });
   }
 
   const goodDescriptor = { entries: maxResourceBindings };
@@ -322,8 +332,8 @@ fn(async (t) => {
   newDescriptor.entries.push({
     binding: maxedCount,
     visibility: extraVisibility,
-    ...extraEntry });
-
+    ...extraEntry
+  });
 
   const newBindingCountsTowardSamePerStageLimit =
   (maxedVisibility & extraVisibility) !== 0 &&
@@ -348,7 +358,7 @@ desc(
   `).
 
 params(kMaxResourcesCases).
-fn(async (t) => {
+fn((t) => {
   const { maxedEntry, extraEntry, maxedVisibility, extraVisibility } = t.params;
   const maxedTypeInfo = bindingTypeInfo(maxedEntry);
   const maxedCount = maxedTypeInfo.perStageLimitClass.max;
@@ -359,8 +369,8 @@ fn(async (t) => {
     maxResourceBindings.push({
       binding: i,
       visibility: maxedVisibility,
-      ...maxedEntry });
-
+      ...maxedEntry
+    });
   }
 
   const goodLayout = t.device.createBindGroupLayout({ entries: maxResourceBindings });
@@ -373,10 +383,10 @@ fn(async (t) => {
     {
       binding: 0,
       visibility: extraVisibility,
-      ...extraEntry }] });
+      ...extraEntry
+    }]
 
-
-
+  });
 
   // Some binding types use the same limit, e.g. 'storage-buffer' and 'readonly-storage-buffer'.
   const newBindingCountsTowardSamePerStageLimit =
@@ -398,7 +408,7 @@ params((u) =>
 u //
 .combine('viewDimension', [undefined, ...kTextureViewDimensions])).
 
-fn(async (t) => {
+fn((t) => {
   const { viewDimension } = t.params;
 
   const success = viewDimension !== 'cube' && viewDimension !== `cube-array`;
@@ -409,10 +419,10 @@ fn(async (t) => {
       {
         binding: 0,
         visibility: GPUShaderStage.COMPUTE,
-        storageTexture: { format: 'rgba8unorm', viewDimension } }] });
+        storageTexture: { format: 'rgba8unorm', viewDimension }
+      }]
 
-
-
+    });
   }, !success);
 });
 
@@ -420,15 +430,13 @@ g.test('storage_texture,formats').
 desc(
 `
   Test that a validation error is generated if the format doesn't support the storage usage.
-
-  TODO: Test "bgra8unorm" with the "bgra8unorm-storage" feature.
   `).
 
 params((u) => u.combine('format', kAllTextureFormats)).
 beforeAllSubcases((t) => {
   t.selectDeviceForTextureFormatOrSkipTestCase(t.params.format);
 }).
-fn(async (t) => {
+fn((t) => {
   const { format } = t.params;
   const info = kTextureFormatInfo[format];
 
@@ -438,10 +446,10 @@ fn(async (t) => {
       {
         binding: 0,
         visibility: GPUShaderStage.COMPUTE,
-        storageTexture: { format } }] });
+        storageTexture: { format }
+      }]
 
-
-
+    });
   }, !info.storage);
 });
 //# sourceMappingURL=createBindGroupLayout.spec.js.map

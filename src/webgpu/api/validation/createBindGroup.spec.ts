@@ -15,7 +15,9 @@ import {
   kBindableResources,
   kBufferBindingTypes,
   kBufferUsages,
+  kCompareFunctions,
   kLimitInfo,
+  kSamplerBindingTypes,
   kTextureFormatInfo,
   kTextureUsages,
   kTextureViewDimensions,
@@ -43,7 +45,7 @@ g.test('binding_count_mismatch')
       .combine('layoutEntryCount', [1, 2, 3])
       .combine('bindGroupEntryCount', [1, 2, 3])
   )
-  .fn(async t => {
+  .fn(t => {
     const { layoutEntryCount, bindGroupEntryCount } = t.params;
 
     const layoutEntries: Array<GPUBindGroupLayoutEntry> = [];
@@ -82,7 +84,7 @@ g.test('binding_must_be_present_in_layout')
       .combine('layoutBinding', [0, 1, 2])
       .combine('binding', [0, 1, 2])
   )
-  .fn(async t => {
+  .fn(t => {
     const { layoutBinding, binding } = t.params;
 
     const bindGroupLayout = t.device.createBindGroupLayout({
@@ -152,7 +154,7 @@ g.test('texture_binding_must_have_correct_usage')
         return usage === GPUConst.TextureUsage.STORAGE_BINDING && info.resource === 'sampledTexMS';
       })
   )
-  .fn(async t => {
+  .fn(t => {
     const { entry, usage } = t.params;
     const info = texBindingTypeInfo(entry);
 
@@ -189,7 +191,7 @@ g.test('texture_must_have_correct_component_type')
     - Tests an incompatible format for every sample type`
   )
   .params(u => u.combine('sampleType', ['float', 'sint', 'uint'] as const))
-  .fn(async t => {
+  .fn(t => {
     const { sampleType } = t.params;
 
     const bindGroupLayout = t.device.createBindGroupLayout({
@@ -260,23 +262,41 @@ g.test('texture_must_have_correct_dimension')
   .desc(
     `
     Test that bound texture views match the dimensions supplied in the BindGroupLayout
-    - Test for every GPUTextureViewDimension`
+      - Test for every GPUTextureViewDimension
+      - Test for both TEXTURE_BINDING and STORAGE_BINDING.
+  `
   )
   .params(u =>
     u
+      .combine('usage', [
+        GPUConst.TextureUsage.TEXTURE_BINDING,
+        GPUConst.TextureUsage.STORAGE_BINDING,
+      ])
       .combine('viewDimension', kTextureViewDimensions)
+      .unless(
+        p =>
+          p.usage === GPUConst.TextureUsage.STORAGE_BINDING &&
+          (p.viewDimension === 'cube' || p.viewDimension === 'cube-array')
+      )
       .beginSubcases()
       .combine('dimension', kTextureViewDimensions)
   )
-  .fn(async t => {
-    const { viewDimension, dimension } = t.params;
+  .fn(t => {
+    const { usage, viewDimension, dimension } = t.params;
+
     const bindGroupLayout = t.device.createBindGroupLayout({
       entries: [
-        {
-          binding: 0,
-          visibility: GPUShaderStage.FRAGMENT,
-          texture: { viewDimension },
-        },
+        usage === GPUTextureUsage.TEXTURE_BINDING
+          ? {
+              binding: 0,
+              visibility: GPUShaderStage.FRAGMENT,
+              texture: { viewDimension },
+            }
+          : {
+              binding: 0,
+              visibility: GPUShaderStage.FRAGMENT,
+              storageTexture: { access: 'write-only', format: 'rgba8unorm', viewDimension },
+            },
       ],
     });
 
@@ -290,7 +310,7 @@ g.test('texture_must_have_correct_dimension')
     const texture = t.device.createTexture({
       size: { width: 16, height, depthOrArrayLayers },
       format: 'rgba8unorm' as const,
-      usage: GPUTextureUsage.TEXTURE_BINDING,
+      usage,
       dimension: getTextureDimensionFromView(dimension),
     });
 
@@ -318,7 +338,7 @@ g.test('multisampled_validation')
       .beginSubcases()
       .combine('sampleCount', [1, 4])
   )
-  .fn(async t => {
+  .fn(t => {
     const { multisampled, sampleCount } = t.params;
     const bindGroupLayout = t.device.createBindGroupLayout({
       entries: [
@@ -381,7 +401,7 @@ g.test('buffer_offset_and_size_for_bind_groups_match')
     { offset: 0, size: 256 * 5, _success: false }, // size is OOB
     { offset: 1024, size: 1, _success: false }, // offset+size is OOB
   ])
-  .fn(async t => {
+  .fn(t => {
     const { offset, size, _success } = t.params;
 
     const bindGroupLayout = t.device.createBindGroupLayout({
@@ -418,10 +438,10 @@ g.test('minBindingSize')
   .desc('Tests that minBindingSize is correctly enforced.')
   .paramsSubcasesOnly(u =>
     u //
-      .combine('minBindingSize', [undefined, 4, 256])
+      .combine('minBindingSize', [undefined, 4, 8, 256])
       .expand('size', ({ minBindingSize }) =>
         minBindingSize !== undefined
-          ? [minBindingSize - 1, minBindingSize, minBindingSize + 1]
+          ? [minBindingSize - 4, minBindingSize, minBindingSize + 4]
           : [4, 256]
       )
   )
@@ -560,12 +580,12 @@ g.test('bind_group_layout,device_mismatch')
   .beforeAllSubcases(t => {
     t.selectMismatchedDeviceOrSkipTestCase(undefined);
   })
-  .fn(async t => {
+  .fn(t => {
     const mismatched = t.params.mismatched;
 
-    const device = mismatched ? t.mismatchedDevice : t.device;
+    const sourceDevice = mismatched ? t.mismatchedDevice : t.device;
 
-    const bgl = device.createBindGroupLayout({
+    const bgl = sourceDevice.createBindGroupLayout({
       entries: [
         {
           binding: 0,
@@ -617,7 +637,7 @@ g.test('binding_resources,device_mismatch')
   .beforeAllSubcases(t => {
     t.selectMismatchedDeviceOrSkipTestCase(undefined);
   })
-  .fn(async t => {
+  .fn(t => {
     const { entry, resource0Mismatched, resource1Mismatched } = t.params;
 
     const info = bindingTypeInfo(entry);
@@ -675,7 +695,7 @@ g.test('storage_texture,usage')
       .combine('usage0', kTextureUsages)
       .combine('usage1', kTextureUsages)
   )
-  .fn(async t => {
+  .fn(t => {
     const { usage0, usage1 } = t.params;
 
     const usage = usage0 | usage1;
@@ -720,7 +740,7 @@ g.test('storage_texture,mip_level_count')
       .combine('baseMipLevel', [1, 2])
       .combine('mipLevelCount', [1, 2])
   )
-  .fn(async t => {
+  .fn(t => {
     const { baseMipLevel, mipLevelCount } = t.params;
 
     const bindGroupLayout = t.device.createBindGroupLayout({
@@ -763,7 +783,7 @@ g.test('storage_texture,format')
       .combine('storageTextureFormat', kStorageTextureFormats)
       .combine('resourceFormat', kStorageTextureFormats)
   )
-  .fn(async t => {
+  .fn(t => {
     const { storageTextureFormat, resourceFormat } = t.params;
 
     const bindGroupLayout = t.device.createBindGroupLayout({
@@ -814,7 +834,7 @@ g.test('buffer,usage')
           0
       )
   )
-  .fn(async t => {
+  .fn(t => {
     const { type, usage0, usage1 } = t.params;
 
     const usage = usage0 | usage1;
@@ -877,7 +897,7 @@ g.test('buffer,resource_offset')
             ]
       )
   )
-  .fn(async t => {
+  .fn(t => {
     const { type, offset } = t.params;
 
     const bindGroupLayout = t.device.createBindGroupLayout({
@@ -921,10 +941,10 @@ g.test('buffer,resource_binding_size')
   `
   )
   .params(u =>
-    u //
+    u
       .combine('type', kBufferBindingTypes)
       .beginSubcases()
-      // Test a size of 1 to ensure there's no alignment requirement,
+      // Test a size of 1 (for uniform buffer) or 4 (for storage and read-only storage buffer)
       // then values just within and just above the limit.
       .expand('bindingSize', ({ type }) =>
         type === 'uniform'
@@ -934,13 +954,13 @@ g.test('buffer,resource_binding_size')
               kLimitInfo.maxUniformBufferBindingSize.default + 1,
             ]
           : [
-              1,
+              4,
               kLimitInfo.maxStorageBufferBindingSize.default,
-              kLimitInfo.maxStorageBufferBindingSize.default + 1,
+              kLimitInfo.maxStorageBufferBindingSize.default + 4,
             ]
       )
   )
-  .fn(async t => {
+  .fn(t => {
     const { type, bindingSize } = t.params;
 
     const bindGroupLayout = t.device.createBindGroupLayout({
@@ -970,6 +990,141 @@ g.test('buffer,resource_binding_size')
     t.expectValidationError(() => {
       t.device.createBindGroup({
         entries: [{ binding: 0, resource: { buffer, size: bindingSize } }],
+        layout: bindGroupLayout,
+      });
+    }, !isValid);
+  });
+
+g.test('buffer,effective_buffer_binding_size')
+  .desc(
+    `
+  Test that the effective buffer binding size of the BindGroup entry must be a multiple of 4 if the
+  buffer type is 'storage|read-only-storage', while there is no such restriction on uniform buffers.
+`
+  )
+  .params(u =>
+    u
+      .combine('type', kBufferBindingTypes)
+      .beginSubcases()
+      .expand('offset', ({ type }) =>
+        type === 'uniform'
+          ? [0, kLimitInfo.minUniformBufferOffsetAlignment.default]
+          : [0, kLimitInfo.minStorageBufferOffsetAlignment.default]
+      )
+      .expand('bufferSize', ({ type }) =>
+        type === 'uniform'
+          ? [
+              kLimitInfo.minUniformBufferOffsetAlignment.default + 8,
+              kLimitInfo.minUniformBufferOffsetAlignment.default + 10,
+            ]
+          : [
+              kLimitInfo.minStorageBufferOffsetAlignment.default + 8,
+              kLimitInfo.minStorageBufferOffsetAlignment.default + 10,
+            ]
+      )
+      .combine('bindingSize', [undefined, 2, 4, 6])
+  )
+  .fn(t => {
+    const { type, offset, bufferSize, bindingSize } = t.params;
+
+    const bindGroupLayout = t.device.createBindGroupLayout({
+      entries: [
+        {
+          binding: 0,
+          visibility: GPUShaderStage.COMPUTE,
+          buffer: { type },
+        },
+      ],
+    });
+
+    const effectiveBindingSize = bindingSize ?? bufferSize - offset;
+    let usage, isValid;
+    if (type === 'uniform') {
+      usage = GPUBufferUsage.UNIFORM;
+      isValid = true;
+    } else {
+      usage = GPUBufferUsage.STORAGE;
+      isValid = effectiveBindingSize % 4 === 0;
+    }
+
+    const buffer = t.device.createBuffer({
+      size: bufferSize,
+      usage,
+    });
+
+    t.expectValidationError(() => {
+      t.device.createBindGroup({
+        entries: [{ binding: 0, resource: { buffer, offset, size: bindingSize } }],
+        layout: bindGroupLayout,
+      });
+    }, !isValid);
+  });
+
+g.test('sampler,device_mismatch')
+  .desc(`Tests createBindGroup cannot be called with a sampler created from another device.`)
+  .paramsSubcasesOnly(u => u.combine('mismatched', [true, false]))
+  .beforeAllSubcases(t => {
+    t.selectMismatchedDeviceOrSkipTestCase(undefined);
+  })
+  .fn(t => {
+    const { mismatched } = t.params;
+
+    const sourceDevice = mismatched ? t.mismatchedDevice : t.device;
+
+    const bindGroupLayout = t.device.createBindGroupLayout({
+      entries: [
+        {
+          binding: 0,
+          visibility: GPUShaderStage.FRAGMENT,
+          sampler: { type: 'filtering' as const },
+        },
+      ],
+    });
+
+    const sampler = sourceDevice.createSampler();
+    t.expectValidationError(() => {
+      t.device.createBindGroup({
+        entries: [{ binding: 0, resource: sampler }],
+        layout: bindGroupLayout,
+      });
+    }, mismatched);
+  });
+
+g.test('sampler,compare_function_with_binding_type')
+  .desc(
+    `
+  Test that the sampler of the BindGroup has a 'compareFunction' value if the sampler type of the
+  BindGroupLayout is 'comparison'. Other sampler types should not have 'compare' field in
+  the descriptor of the sampler.
+  `
+  )
+  .params(u =>
+    u //
+      .combine('bgType', kSamplerBindingTypes)
+      .beginSubcases()
+      .combine('compareFunction', [undefined, ...kCompareFunctions])
+  )
+  .fn(t => {
+    const { bgType, compareFunction } = t.params;
+
+    const bindGroupLayout = t.device.createBindGroupLayout({
+      entries: [
+        {
+          binding: 0,
+          visibility: GPUShaderStage.FRAGMENT,
+          sampler: { type: bgType },
+        },
+      ],
+    });
+
+    const isValid =
+      bgType === 'comparison' ? compareFunction !== undefined : compareFunction === undefined;
+
+    const sampler = t.device.createSampler({ compare: compareFunction });
+
+    t.expectValidationError(() => {
+      t.device.createBindGroup({
+        entries: [{ binding: 0, resource: sampler }],
         layout: bindGroupLayout,
       });
     }, !isValid);

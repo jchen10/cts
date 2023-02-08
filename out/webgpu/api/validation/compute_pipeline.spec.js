@@ -5,6 +5,7 @@ createComputePipeline and createComputePipelineAsync validation tests.
 
 Note: entry point matching tests are in shader_module/entry_point.spec.ts
 `;import { makeTestGroup } from '../../../common/framework/test_group.js';
+import { kValue } from '../../util/constants.js';
 import { getShaderWithEntryPoint } from '../../util/shader.js';
 
 import { ValidationTest } from './validation_test.js';
@@ -15,10 +16,10 @@ class F extends ValidationTest {
   entryPoint = 'main')
   {
     return this.device.createShaderModule({
-      code: getShaderWithEntryPoint(shaderStage, entryPoint) });
-
-  }}
-
+      code: getShaderWithEntryPoint(shaderStage, entryPoint)
+    });
+  }
+}
 
 export const g = makeTestGroup(F);
 
@@ -30,12 +31,12 @@ Call the API with valid compute shader and matching valid entryPoint, making sur
 `).
 
 params((u) => u.combine('isAsync', [true, false])).
-fn(async (t) => {
+fn((t) => {
   const { isAsync } = t.params;
   t.doCreateComputePipelineTest(isAsync, true, {
     layout: 'auto',
-    compute: { module: t.getShaderModule('compute', 'main'), entryPoint: 'main' } });
-
+    compute: { module: t.getShaderModule('compute', 'main'), entryPoint: 'main' }
+  });
 });
 
 g.test('shader_module,invalid').
@@ -45,15 +46,15 @@ Tests calling createComputePipeline(Async) with a invalid compute shader, and ch
 `).
 
 params((u) => u.combine('isAsync', [true, false])).
-fn(async (t) => {
+fn((t) => {
   const { isAsync } = t.params;
   t.doCreateComputePipelineTest(isAsync, false, {
     layout: 'auto',
     compute: {
       module: t.createInvalidShaderModule(),
-      entryPoint: 'main' } });
-
-
+      entryPoint: 'main'
+    }
+  });
 });
 
 g.test('shader_module,compute').
@@ -68,15 +69,15 @@ u //
 .combine('isAsync', [true, false]).
 combine('shaderModuleStage', ['compute', 'vertex', 'fragment'])).
 
-fn(async (t) => {
+fn((t) => {
   const { isAsync, shaderModuleStage } = t.params;
   const descriptor = {
     layout: 'auto',
     compute: {
       module: t.getShaderModule(shaderModuleStage, 'main'),
-      entryPoint: 'main' } };
-
-
+      entryPoint: 'main'
+    }
+  };
   t.doCreateComputePipelineTest(isAsync, shaderModuleStage === 'compute', descriptor);
 });
 
@@ -88,22 +89,22 @@ paramsSubcasesOnly((u) => u.combine('isAsync', [true, false]).combine('mismatche
 beforeAllSubcases((t) => {
   t.selectMismatchedDeviceOrSkipTestCase(undefined);
 }).
-fn(async (t) => {
+fn((t) => {
   const { isAsync, mismatched } = t.params;
 
-  const device = mismatched ? t.mismatchedDevice : t.device;
+  const sourceDevice = mismatched ? t.mismatchedDevice : t.device;
 
-  const module = device.createShaderModule({
-    code: '@compute @workgroup_size(1) fn main() {}' });
-
+  const module = sourceDevice.createShaderModule({
+    code: '@compute @workgroup_size(1) fn main() {}'
+  });
 
   const descriptor = {
     layout: 'auto',
     compute: {
       module,
-      entryPoint: 'main' } };
-
-
+      entryPoint: 'main'
+    }
+  };
 
   t.doCreateComputePipelineTest(isAsync, !mismatched, descriptor);
 });
@@ -116,19 +117,19 @@ paramsSubcasesOnly((u) => u.combine('isAsync', [true, false]).combine('mismatche
 beforeAllSubcases((t) => {
   t.selectMismatchedDeviceOrSkipTestCase(undefined);
 }).
-fn(async (t) => {
+fn((t) => {
   const { isAsync, mismatched } = t.params;
-  const device = mismatched ? t.mismatchedDevice : t.device;
+  const sourceDevice = mismatched ? t.mismatchedDevice : t.device;
 
-  const layout = device.createPipelineLayout({ bindGroupLayouts: [] });
+  const layout = sourceDevice.createPipelineLayout({ bindGroupLayouts: [] });
 
   const descriptor = {
     layout,
     compute: {
       module: t.getShaderModule('compute', 'main'),
-      entryPoint: 'main' } };
-
-
+      entryPoint: 'main'
+    }
+  };
 
   t.doCreateComputePipelineTest(isAsync, !mismatched, descriptor);
 });
@@ -149,7 +150,7 @@ combineWithParams([
 beginSubcases().
 combine('countDeltaFromLimit', [0, 1])).
 
-fn(async (t) => {
+fn((t) => {
   const { isAsync, type, _typeSize, countDeltaFromLimit } = t.params;
   const countAtLimit = Math.floor(t.device.limits.maxComputeWorkgroupStorageSize / _typeSize);
   const count = countAtLimit + countDeltaFromLimit;
@@ -163,11 +164,11 @@ fn(async (t) => {
           @compute @workgroup_size(64) fn main () {
             _ = data;
           }
-          ` }),
-
-      entryPoint: 'main' } };
-
-
+          `
+      }),
+      entryPoint: 'main'
+    }
+  };
   t.doCreateComputePipelineTest(isAsync, count <= countAtLimit, descriptor);
 });
 
@@ -190,7 +191,7 @@ combine('size', [
 [1, 8, 33]])).
 
 
-fn(async (t) => {
+fn((t) => {
   const { isAsync, size } = t.params;
 
   const descriptor = {
@@ -200,11 +201,11 @@ fn(async (t) => {
         code: `
           @compute @workgroup_size(${size.join(',')}) fn main () {
           }
-          ` }),
-
-      entryPoint: 'main' } };
-
-
+          `
+      }),
+      entryPoint: 'main'
+    }
+  };
 
   t.doCreateComputePipelineTest(
   isAsync,
@@ -234,7 +235,7 @@ combine('size', [
 [1, 1, 65]])).
 
 
-fn(async (t) => {
+fn((t) => {
   const { isAsync, size } = t.params;
 
   const descriptor = {
@@ -244,11 +245,11 @@ fn(async (t) => {
         code: `
           @compute @workgroup_size(${size.join(',')}) fn main () {
           }
-          ` }),
-
-      entryPoint: 'main' } };
-
-
+          `
+      }),
+      entryPoint: 'main'
+    }
+  };
 
   size[1] = size[1] ?? 1;
   size[2] = size[2] ?? 1;
@@ -273,16 +274,19 @@ combineWithParams([
 { constants: {}, _success: true },
 { constants: { c0: 0 }, _success: true },
 { constants: { c0: 0, c1: 1 }, _success: true },
+{ constants: { 'c0\0': 0 }, _success: false },
 { constants: { c9: 0 }, _success: false },
 { constants: { 1: 0 }, _success: true },
 { constants: { c3: 0 }, _success: false }, // pipeline constant id is specified for c3
 { constants: { 2: 0 }, _success: false },
 { constants: { 1000: 0 }, _success: true },
 { constants: { 9999: 0 }, _success: false },
-{ constants: { 1000: 0, c2: 0 }, _success: false }])).
+{ constants: { 1000: 0, c2: 0 }, _success: false },
+{ constants: { 数: 0 }, _success: true },
+{ constants: { séquençage: 0 }, _success: true } // test unicode normalization
+])).
 
-
-fn(async (t) => {
+fn((t) => {
   const { isAsync, constants, _success } = t.params;
 
   const descriptor = {
@@ -292,20 +296,22 @@ fn(async (t) => {
         code: `
             override c0: bool = true;      // type: bool
             override c1: u32 = 0u;          // default override
+            override 数: u32 = 0u;          // non-ASCII
+            override sequencage: u32 = 0u;  // unicode normalization
             @id(1000) override c2: u32 = 10u;  // default
             @id(1) override c3: u32 = 11u;     // default
             @compute @workgroup_size(1) fn main () {
               // make sure the overridable constants are not optimized out
               _ = u32(c0);
               _ = u32(c1);
-              _ = u32(c2);
-              _ = u32(c3);
-            }` }),
-
+              _ = u32(c2 + sequencage);
+              _ = u32(c3 + 数);
+            }`
+      }),
       entryPoint: 'main',
-      constants } };
-
-
+      constants
+    }
+  };
 
   t.doCreateComputePipelineTest(isAsync, _success, descriptor);
 });
@@ -326,7 +332,7 @@ combineWithParams([
 { constants: { c0: 0, c2: 0, c5: 0, c8: 0, c1: 0 }, _success: true }])).
 
 
-fn(async (t) => {
+fn((t) => {
   const { isAsync, constants, _success } = t.params;
 
   const descriptor = {
@@ -358,12 +364,154 @@ fn(async (t) => {
               _ = u32(c8);
               _ = u32(c9);
               _ = u32(c10);
-            }` }),
-
+            }`
+      }),
       entryPoint: 'main',
-      constants } };
+      constants
+    }
+  };
+
+  t.doCreateComputePipelineTest(isAsync, _success, descriptor);
+});
+
+g.test('overrides,value,type_error').
+desc(
+`
+Tests calling createComputePipeline(Async) validation for constant values like inf, NaN will results in TypeError.
+`).
+
+params((u) =>
+u //
+.combine('isAsync', [true, false]).
+combineWithParams([
+{ constants: { cf: 1 }, _success: true }, // control
+{ constants: { cf: NaN }, _success: false },
+{ constants: { cf: Number.POSITIVE_INFINITY }, _success: false },
+{ constants: { cf: Number.NEGATIVE_INFINITY }, _success: false }])).
 
 
+fn((t) => {
+  const { isAsync, constants, _success } = t.params;
+
+  const descriptor = {
+    layout: 'auto',
+    compute: {
+      module: t.device.createShaderModule({
+        code: `
+            override cf: f32 = 0.0;
+            @compute @workgroup_size(1) fn main () {
+              _ = cf;
+            }`
+      }),
+      entryPoint: 'main',
+      constants
+    }
+  };
+
+  t.doCreateComputePipelineTest(isAsync, _success, descriptor, 'TypeError');
+});
+
+g.test('overrides,value,validation_error').
+desc(
+`
+Tests calling createComputePipeline(Async) validation for unrepresentable constant values in compute stage.
+
+TODO(#2060): test with last_f64_castable.
+`).
+
+params((u) =>
+u //
+.combine('isAsync', [true, false]).
+combineWithParams([
+{ constants: { cu: kValue.u32.min }, _success: true },
+{ constants: { cu: kValue.u32.min - 1 }, _success: false },
+{ constants: { cu: kValue.u32.max }, _success: true },
+{ constants: { cu: kValue.u32.max + 1 }, _success: false },
+{ constants: { ci: kValue.i32.negative.min }, _success: true },
+{ constants: { ci: kValue.i32.negative.min - 1 }, _success: false },
+{ constants: { ci: kValue.i32.positive.max }, _success: true },
+{ constants: { ci: kValue.i32.positive.max + 1 }, _success: false },
+{ constants: { cf: kValue.f32.negative.min }, _success: true },
+{ constants: { cf: kValue.f32.negative.first_f64_not_castable }, _success: false },
+{ constants: { cf: kValue.f32.positive.max }, _success: true },
+{ constants: { cf: kValue.f32.positive.first_f64_not_castable }, _success: false },
+// Conversion to boolean can't fail
+{ constants: { cb: Number.MAX_VALUE }, _success: true },
+{ constants: { cb: kValue.i32.negative.min - 1 }, _success: true }])).
+
+
+fn((t) => {
+  const { isAsync, constants, _success } = t.params;
+
+  const descriptor = {
+    layout: 'auto',
+    compute: {
+      module: t.device.createShaderModule({
+        code: `
+          override cb: bool = false;
+          override cu: u32 = 0u;
+          override ci: i32 = 0;
+          override cf: f32 = 0.0;
+          @compute @workgroup_size(1) fn main () {
+            _ = cb;
+            _ = cu;
+            _ = ci;
+            _ = cf;
+          }`
+      }),
+      entryPoint: 'main',
+      constants
+    }
+  };
+
+  t.doCreateComputePipelineTest(isAsync, _success, descriptor);
+});
+
+g.test('overrides,value,validation_error,f16').
+desc(
+`
+Tests calling createComputePipeline(Async) validation for unrepresentable f16 constant values in compute stage.
+
+TODO(#2060): Tighten the cases around the valid/invalid boundary once we have WGSL spec
+clarity on whether values like f16.positive.last_f64_castable would be valid. See issue.
+`).
+
+params((u) =>
+u //
+.combine('isAsync', [true, false]).
+combineWithParams([
+{ constants: { cf16: kValue.f16.negative.min }, _success: true },
+{ constants: { cf16: kValue.f16.negative.first_f64_not_castable }, _success: false },
+{ constants: { cf16: kValue.f16.positive.max }, _success: true },
+{ constants: { cf16: kValue.f16.positive.first_f64_not_castable }, _success: false },
+{ constants: { cf16: kValue.f32.negative.min }, _success: false },
+{ constants: { cf16: kValue.f32.positive.max }, _success: false },
+{ constants: { cf16: kValue.f32.negative.first_f64_not_castable }, _success: false },
+{ constants: { cf16: kValue.f32.positive.first_f64_not_castable }, _success: false }])).
+
+
+beforeAllSubcases((t) => {
+  t.selectDeviceOrSkipTestCase({ requiredFeatures: ['shader-f16'] });
+}).
+fn((t) => {
+  const { isAsync, constants, _success } = t.params;
+
+  const descriptor = {
+    layout: 'auto',
+    compute: {
+      module: t.device.createShaderModule({
+        code: `
+          enable f16;
+
+          override cf16: f16 = 0.0h;
+          @compute @workgroup_size(1) fn main () {
+            _ = cf16;
+          }`
+      }),
+      entryPoint: 'main',
+      constants
+    }
+  };
 
   t.doCreateComputePipelineTest(isAsync, _success, descriptor);
 });
@@ -384,8 +532,8 @@ override z: i32 = 1;
 @compute @workgroup_size(x, y, z) fn main () {
   _ = 0u;
 }
-` };
-
+`
+};
 
 g.test('overrides,workgroup_size').
 desc(
@@ -405,19 +553,19 @@ combineWithParams([
 { constants: { x: 16, y: 1, z: 1 }, _success: true }])).
 
 
-fn(async (t) => {
+fn((t) => {
   const { isAsync, type, constants, _success } = t.params;
 
   const descriptor = {
     layout: 'auto',
     compute: {
       module: t.device.createShaderModule({
-        code: kOverridesWorkgroupSizeShaders[type] }),
-
+        code: kOverridesWorkgroupSizeShaders[type]
+      }),
       entryPoint: 'main',
-      constants } };
-
-
+      constants
+    }
+  };
 
   t.doCreateComputePipelineTest(isAsync, _success, descriptor);
 });
@@ -433,7 +581,7 @@ u //
 .combine('isAsync', [true, false]).
 combine('type', ['u32', 'i32'])).
 
-fn(async (t) => {
+fn((t) => {
   const { isAsync, type } = t.params;
 
   const limits = t.device.limits;
@@ -443,16 +591,16 @@ fn(async (t) => {
       layout: 'auto',
       compute: {
         module: t.device.createShaderModule({
-          code: kOverridesWorkgroupSizeShaders[type] }),
-
+          code: kOverridesWorkgroupSizeShaders[type]
+        }),
         entryPoint: 'main',
         constants: {
           x,
           y,
-          z } } };
-
-
-
+          z
+        }
+      }
+    };
 
     t.doCreateComputePipelineTest(isAsync, _success, descriptor);
   };
@@ -484,7 +632,7 @@ params((u) =>
 u //
 .combine('isAsync', [true, false])).
 
-fn(async (t) => {
+fn((t) => {
   const { isAsync } = t.params;
 
   const limits = t.device.limits;
@@ -505,17 +653,17 @@ fn(async (t) => {
               ${vec4Count <= 0 ? '' : 'var<workgroup> vec4_data: array<vec4<f32>, a>;'}
               ${mat4Count <= 0 ? '' : 'var<workgroup> mat4_data: array<mat4x4<f32>, b>;'}
               @compute @workgroup_size(1) fn main() {
-                ${vec4Count <= 0 ? '' : '_ = vec4_data;'}
-                ${vec4Count <= 0 ? '' : '_ = mat4_data;'}
-              }` }),
-
+                ${vec4Count <= 0 ? '' : '_ = vec4_data[0];'}
+                ${mat4Count <= 0 ? '' : '_ = mat4_data[0];'}
+              }`
+        }),
         entryPoint: 'main',
         constants: {
           a: vec4Count,
-          b: mat4Count } } };
-
-
-
+          b: mat4Count
+        }
+      }
+    };
 
     t.doCreateComputePipelineTest(isAsync, _success, descriptor);
   };

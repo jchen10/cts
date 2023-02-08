@@ -12,7 +12,7 @@ export const g = makeTestGroup(CreateRenderPipelineValidationTest);
 g.test('basic').
 desc(`Test basic usage of createRenderPipeline.`).
 params((u) => u.combine('isAsync', [false, true])).
-fn(async (t) => {
+fn((t) => {
   const { isAsync } = t.params;
   const descriptor = t.getDescriptor();
 
@@ -36,7 +36,7 @@ combine('depthStencilFormat', [
 
 combine('hasColor', [false, true])).
 
-fn(async (t) => {
+fn((t) => {
   const { isAsync, depthStencilFormat, hasColor } = t.params;
 
   let depthStencilState;
@@ -51,8 +51,8 @@ fn(async (t) => {
   const descriptor = t.getDescriptor({
     noFragment: true,
     depthStencil: depthStencilState,
-    targets: hasColor ? [{ format: 'rgba8unorm' }] : [] });
-
+    targets: hasColor ? [{ format: 'rgba8unorm' }] : []
+  });
 
   t.doCreateRenderPipelineTest(isAsync, true, descriptor);
 });
@@ -65,30 +65,30 @@ paramsSubcasesOnly((u) => u.combine('isAsync', [true, false]).combine('mismatche
 beforeAllSubcases((t) => {
   t.selectMismatchedDeviceOrSkipTestCase(undefined);
 }).
-fn(async (t) => {
+fn((t) => {
   const { isAsync, mismatched } = t.params;
 
-  const device = mismatched ? t.mismatchedDevice : t.device;
+  const sourceDevice = mismatched ? t.mismatchedDevice : t.device;
 
-  const layout = device.createPipelineLayout({ bindGroupLayouts: [] });
+  const layout = sourceDevice.createPipelineLayout({ bindGroupLayouts: [] });
 
   const format = 'rgba8unorm';
   const descriptor = {
     layout,
     vertex: {
       module: t.device.createShaderModule({
-        code: kDefaultVertexShaderCode }),
-
-      entryPoint: 'main' },
-
+        code: kDefaultVertexShaderCode
+      }),
+      entryPoint: 'main'
+    },
     fragment: {
       module: t.device.createShaderModule({
-        code: kDefaultFragmentShaderCode }),
-
+        code: kDefaultFragmentShaderCode
+      }),
       entryPoint: 'main',
-      targets: [{ format }] } };
-
-
+      targets: [{ format }]
+    }
+  };
 
   t.doCreateRenderPipelineTest(isAsync, !mismatched, descriptor);
 });

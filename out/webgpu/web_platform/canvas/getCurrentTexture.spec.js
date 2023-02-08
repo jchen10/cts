@@ -17,12 +17,12 @@ class GPUContextTest extends GPUTest {
     ctx.configure({
       device: this.device,
       format: 'rgba8unorm',
-      usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC });
-
+      usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC
+    });
 
     return ctx;
-  }}
-
+  }
+}
 
 export const g = makeTestGroup(GPUContextTest);
 
@@ -35,7 +35,7 @@ params((u) =>
 u //
 .combine('canvasType', kAllCanvasTypes)).
 
-fn(async (t) => {
+fn((t) => {
   const canvas = createCanvas(t, t.params.canvasType, 2, 2);
   const ctx = canvas.getContext('webgpu');
   assert(ctx instanceof GPUCanvasContext, 'Failed to get WebGPU context from canvas');
@@ -48,16 +48,16 @@ fn(async (t) => {
   // Once the context has been configured getCurrentTexture can be called.
   ctx.configure({
     device: t.device,
-    format: 'rgba8unorm' });
-
+    format: 'rgba8unorm'
+  });
 
   let prevTexture = ctx.getCurrentTexture();
 
   // Calling configure again with different values will change the texture returned.
   ctx.configure({
     device: t.device,
-    format: 'bgra8unorm' });
-
+    format: 'bgra8unorm'
+  });
 
   let currentTexture = ctx.getCurrentTexture();
   t.expect(prevTexture !== currentTexture);
@@ -66,8 +66,8 @@ fn(async (t) => {
   // Calling configure again with the same values will still change the texture returned.
   ctx.configure({
     device: t.device,
-    format: 'bgra8unorm' });
-
+    format: 'bgra8unorm'
+  });
 
   currentTexture = ctx.getCurrentTexture();
   t.expect(prevTexture !== currentTexture);
@@ -87,7 +87,7 @@ params((u) =>
 u //
 .combine('canvasType', kAllCanvasTypes)).
 
-fn(async (t) => {
+fn((t) => {
   const ctx = t.initCanvasContext(t.params.canvasType);
   const frameTexture = ctx.getCurrentTexture();
 
@@ -101,10 +101,10 @@ fn(async (t) => {
       view: frameTexture.createView(),
       clearValue: [1.0, 0.0, 0.0, 1.0],
       loadOp: 'clear',
-      storeOp: 'store' }] });
+      storeOp: 'store'
+    }]
 
-
-
+  });
   pass.end();
   t.device.queue.submit([encoder.finish()]);
 
@@ -114,8 +114,8 @@ fn(async (t) => {
   // Ensure that getCurrentTexture does not clear the texture.
   t.expectSingleColor(frameTexture, frameTexture.format, {
     size: [frameTexture.width, frameTexture.height, 1],
-    exp: { R: 1, G: 0, B: 0, A: 1 } });
-
+    exp: { R: 1, G: 0, B: 0, A: 1 }
+  });
 
   frameTexture.destroy();
 
@@ -137,7 +137,7 @@ beforeAllSubcases((t) => {
     throw new SkipTestCase('transferToImageBitmap not supported');
   }
 }).
-fn(async (t) => {
+fn((t) => {
   const { canvasType, clearTexture } = t.params;
 
   return new Promise((resolve) => {
@@ -145,7 +145,7 @@ fn(async (t) => {
     let prevTexture;
     let frameCount = 0;
 
-    async function frameCheck() {
+    function frameCheck() {
       const currentTexture = ctx.getCurrentTexture();
 
       if (prevTexture) {
@@ -155,8 +155,8 @@ fn(async (t) => {
         // Ensure that texture contents are transparent black.
         t.expectSingleColor(currentTexture, currentTexture.format, {
           size: [currentTexture.width, currentTexture.height, 1],
-          exp: { R: 0, G: 0, B: 0, A: 0 } });
-
+          exp: { R: 0, G: 0, B: 0, A: 0 }
+        });
       }
 
       if (clearTexture) {
@@ -168,10 +168,10 @@ fn(async (t) => {
             view: currentTexture.createView(),
             clearValue: [1.0, 0.0, 0.0, 1.0],
             loadOp: 'clear',
-            storeOp: 'store' }] });
+            storeOp: 'store'
+          }]
 
-
-
+        });
         pass.end();
         t.device.queue.submit([encoder.finish()]);
       }
@@ -209,7 +209,7 @@ params((u) =>
 u //
 .combine('canvasType', kAllCanvasTypes)).
 
-fn(async (t) => {
+fn((t) => {
   const ctx = t.initCanvasContext(t.params.canvasType);
   let prevTexture = ctx.getCurrentTexture();
 
@@ -231,8 +231,8 @@ fn(async (t) => {
   // Ensure that texture contents are transparent black.
   t.expectSingleColor(currentTexture, currentTexture.format, {
     size: [currentTexture.width, currentTexture.height, 1],
-    exp: { R: 0, G: 0, B: 0, A: 0 } });
-
+    exp: { R: 0, G: 0, B: 0, A: 0 }
+  });
 
   // Trigger a resize by changing the height.
   ctx.canvas.height = 4;
@@ -249,8 +249,8 @@ fn(async (t) => {
   // Ensure that texture contents are transparent black.
   t.expectSingleColor(currentTexture, currentTexture.format, {
     size: [currentTexture.width, currentTexture.height, 1],
-    exp: { R: 0, G: 0, B: 0, A: 0 } });
-
+    exp: { R: 0, G: 0, B: 0, A: 0 }
+  });
 
   // Simply setting the canvas width and height values to their current values should not trigger
   // a change in the texture.

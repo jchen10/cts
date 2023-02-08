@@ -11,9 +11,17 @@ import {
   Vector,
   VectorType,
   f32,
+  u32,
+  i32,
+  Matrix,
 } from '../../../util/conversion.js';
 import { F32Interval } from '../../../util/f32_interval.js';
-import { quantizeToF32 } from '../../../util/math.js';
+import {
+  cartesianProduct,
+  quantizeToF32,
+  quantizeToI32,
+  quantizeToU32,
+} from '../../../util/math.js';
 
 /** Is this expectation actually a Comparator */
 function isComparator(e) {
@@ -21,6 +29,7 @@ function isComparator(e) {
     e instanceof F32Interval ||
     e instanceof Scalar ||
     e instanceof Vector ||
+    e instanceof Matrix ||
     e instanceof Array
   );
 }
@@ -91,6 +100,23 @@ const kValueStride = 16;
 // ExpressionBuilder returns the WGSL used to test an expression.
 
 /**
+ * Searches for an entry with the given key, adding and returning the result of calling
+ * @p create if the entry was not found.
+ * @param map the cache map
+ * @param key the entry's key
+ * @param create the function used to construct a value, if not found in the cache
+ * @returns the value, either fetched from the cache, or newly built.
+ */
+function getOrCreate(map, key, create) {
+  const existing = map.get(key);
+  if (existing !== undefined) {
+    return existing;
+  }
+  const value = create();
+  map.set(key, value);
+  return value;
+}
+/**
  * Runs the list of expression tests, possibly splitting the tests into multiple
  * dispatches to keep the input data within the buffer binding limits.
  * run() will pack the scalar test cases into smaller set of vectorized tests
@@ -102,7 +128,7 @@ const kValueStride = 16;
  * @param cfg test configuration values
  * @param cases list of test cases
  */
-export function run(
+export async function run(
   t,
   expressionBuilder,
   parameterTypes,
@@ -119,14 +145,21 @@ export function run(
   }
 
   // The size of the input buffer may exceed the maximum buffer binding size,
-  // so chunk the tests up into batches that fit into the limits.
+  // so chunk the tests up into batches that fit into the limits. We also split
+  // the cases into smaller batches to help with shader compilation performance.
   const casesPerBatch = (function () {
     switch (cfg.inputSource) {
       case 'const':
-        return 256; // Arbitrary limit, to ensure shaders aren't too large
+        // Some drivers are slow to optimize shaders with many constant values,
+        // or statements. 32 is an empirically picked number of cases that works
+        // well for most drivers.
+        return 32;
       case 'uniform':
+        // Some drivers are slow to build pipelines with large uniform buffers.
+        // 2k appears to be a sweet-spot when benchmarking.
         return Math.floor(
-          t.device.limits.maxUniformBufferBindingSize / (parameterTypes.length * kValueStride)
+          Math.min(1024 * 2, t.device.limits.maxUniformBufferBindingSize) /
+            (parameterTypes.length * kValueStride)
         );
 
       case 'storage_r':
@@ -137,29 +170,40 @@ export function run(
     }
   })();
 
-  // Submit all the batches inside an error scope.
-  // Note: there is no async work between "push" and "pop" so this is safe to
-  // run concurrently with itself (in other subcases).
-  t.device.pushErrorScope('validation');
+  // A cache to hold built shader pipelines.
+  const pipelineCache = new Map();
 
+  // Submit all the cases in batches, each in a separate error scope.
   const checkResults = [];
   for (let i = 0; i < cases.length; i += casesPerBatch) {
     const batchCases = cases.slice(i, Math.min(i + casesPerBatch, cases.length));
+
+    t.device.pushErrorScope('validation');
+
+    const checkBatch = submitBatch(
+      t,
+      expressionBuilder,
+      parameterTypes,
+      returnType,
+      batchCases,
+      cfg.inputSource,
+      pipelineCache
+    );
+
     checkResults.push(
-      submitBatch(t, expressionBuilder, parameterTypes, returnType, batchCases, cfg.inputSource)
+      // Check GPU validation (shader compilation, pipeline creation, etc) before checking the batch results.
+      t.device.popErrorScope().then(error => {
+        if (error === null) {
+          checkBatch();
+        } else {
+          t.fail(error.message);
+        }
+      })
     );
   }
 
-  // Check GPU validation (shader compilation, pipeline creation, etc) before checking the results.
-  return t.device.popErrorScope().then(error => {
-    if (error !== null) {
-      t.fail(error.message);
-      return;
-    }
-
-    // Check the results
-    checkResults.forEach(f => f());
-  });
+  // Check the results
+  await Promise.all(checkResults);
 }
 
 /**
@@ -171,9 +215,18 @@ export function run(
  * @param returnType the return type for the expression overload
  * @param cases list of test cases that fit within the binding limits of the device
  * @param inputSource the source of the input values
+ * @param pipelineCache the cache of compute pipelines, shared between batches
  * @returns a function that checks the results are as expected
  */
-function submitBatch(t, expressionBuilder, parameterTypes, returnType, cases, inputSource) {
+function submitBatch(
+  t,
+  expressionBuilder,
+  parameterTypes,
+  returnType,
+  cases,
+  inputSource,
+  pipelineCache
+) {
   // Construct a buffer to hold the results of the expression tests
   const outputBufferSize = cases.length * kValueStride;
   const outputBuffer = t.device.createBuffer({
@@ -188,7 +241,8 @@ function submitBatch(t, expressionBuilder, parameterTypes, returnType, cases, in
     returnType,
     cases,
     inputSource,
-    outputBuffer
+    outputBuffer,
+    pipelineCache
   );
 
   const encoder = t.device.createCommandEncoder();
@@ -256,7 +310,9 @@ function ith(v, i) {
 
 /**
  * Constructs and returns a GPUComputePipeline and GPUBindGroup for running a
- * batch of test cases.
+ * batch of test cases. If a pre-created pipeline can be found in
+ * @p pipelineCache, then this may be returned instead of creating a new
+ * pipeline.
  * @param t the GPUTest
  * @param expressionBuilder the expression builder function
  * @param parameterTypes the list of expression parameter types
@@ -264,6 +320,7 @@ function ith(v, i) {
  * @param cases list of test cases that fit within the binding limits of the device
  * @param inputSource the source of the input values
  * @param outputBuffer the buffer that will hold the output values of the tests
+ * @param pipelineCache the cache of compute pipelines, shared between batches
  */
 function buildPipeline(
   t,
@@ -272,7 +329,8 @@ function buildPipeline(
   returnType,
   cases,
   inputSource,
-  outputBuffer
+  outputBuffer,
+  pipelineCache
 ) {
   // wgsl declaration of output buffer and binding
   const wgslStorageType = storageType(returnType);
@@ -293,6 +351,12 @@ struct Output {
         return `${toStorage(returnType, expressionBuilder(args))}`;
       });
 
+      const wgslBody = globalTestConfig.unrollConstEvalLoops
+        ? wgslValues.map((_, i) => `outputs[${i}].value = values[${i}];`).join('\n  ')
+        : `for (var i = 0u; i < ${cases.length}; i++) {
+    outputs[i].value = values[i];
+  }`;
+
       // the full WGSL shader source
       const source = `
 ${wgslOutputs}
@@ -303,9 +367,7 @@ const values = array<${wgslStorageType}, ${cases.length}>(
 
 @compute @workgroup_size(1)
 fn main() {
-  for (var i = 0u; i < ${cases.length}; i++) {
-    outputs[i].value = values[i];
-  }
+  ${wgslBody}
 }
 `;
 
@@ -396,21 +458,24 @@ fn main() {
         }
       }
 
+      // build the compute pipeline, if the shader hasn't been compiled already.
+      const pipeline = getOrCreate(pipelineCache, source, () => {
+        // build the shader module
+        const module = t.device.createShaderModule({ code: source });
+
+        // build the pipeline
+        return t.device.createComputePipeline({
+          layout: 'auto',
+          compute: { module, entryPoint: 'main' },
+        });
+      });
+
       // build the input buffer
       const inputBuffer = t.makeBufferWithContents(
         inputData,
         GPUBufferUsage.COPY_SRC |
           (inputSource === 'uniform' ? GPUBufferUsage.UNIFORM : GPUBufferUsage.STORAGE)
       );
-
-      // build the shader module
-      const module = t.device.createShaderModule({ code: source });
-
-      // build the pipeline
-      const pipeline = t.device.createComputePipeline({
-        layout: 'auto',
-        compute: { module, entryPoint: 'main' },
-      });
 
       // build the bind group
       const group = t.device.createBindGroup({
@@ -503,48 +568,105 @@ function packScalarsToVector(parameterTypes, returnType, cases, vectorWidth) {
 }
 
 /**
- * Generates a Case for the param and unary interval generator provided.
- * The Case will use use an interval comparator for matching results.
- * @param param the param to pass into the unary operation
- * @param ops callbacks that implement generating an acceptance interval for a unary operation
+ * Indicates bounds that acceptance intervals need to be within to avoid inputs
+ * being filtered out. This is used for const-eval tests, since going OOB will
+ * cause a validation error not an execution error.
  */
-export function makeUnaryToF32IntervalCase(param, ...ops) {
+
+// No expectations
+
+/**
+ * @returns a Case for the param and unary interval generator provided
+ * The Case will use use an interval comparator for matching results.
+ * @param param the param to pass in
+ * @param filter what interval filtering to apply
+ * @param ops callbacks that implement generating an acceptance interval for an
+ *            unary operation
+ */
+function makeUnaryToF32IntervalCase(param, filter, ...ops) {
   param = quantizeToF32(param);
 
   const intervals = ops.map(o => o(param));
+  if (filter === 'f32-only' && intervals.some(i => !i.isFinite())) {
+    return undefined;
+  }
   return { input: [f32(param)], expected: anyOf(...intervals) };
 }
 
 /**
- * Generates a Case for the params and binary interval generator provided.
- * The Case will use use an interval comparator for matching results.
- * @param param0 the first param or left hand side to pass into the binary operation
- * @param param1 the second param or rhs hand side to pass into the binary operation
- * @param ops callbacks that implement generating an acceptance interval for a binary operation
+ * @returns an array of Cases for operations over a range of inputs
+ * @param params array of inputs to try
+ * @param filter what interval filtering to apply
+ * @param ops callbacks that implement generating an acceptance interval for an
+ *            unary operation
  */
-export function makeBinaryToF32IntervalCase(param0, param1, ...ops) {
+export function generateUnaryToF32IntervalCases(params, filter, ...ops) {
+  return params.reduce((cases, e) => {
+    const c = makeUnaryToF32IntervalCase(e, filter, ...ops);
+    if (c !== undefined) {
+      cases.push(c);
+    }
+    return cases;
+  }, new Array());
+}
+
+/**
+ * @returns a Case for the params and binary interval generator provided
+ * The Case will use use an interval comparator for matching results.
+ * @param param0 the first param or left hand side to pass in
+ * @param param1 the second param or rhs hand side to pass in
+ * @param filter what interval filtering to apply
+ * @param ops callbacks that implement generating an acceptance interval for a
+ *            binary operation
+ */
+function makeBinaryToF32IntervalCase(param0, param1, filter, ...ops) {
   param0 = quantizeToF32(param0);
   param1 = quantizeToF32(param1);
 
   const intervals = ops.map(o => o(param0, param1));
+  if (filter === 'f32-only' && intervals.some(i => !i.isFinite())) {
+    return undefined;
+  }
   return { input: [f32(param0), f32(param1)], expected: anyOf(...intervals) };
 }
 
 /**
- * Generates a Case for the params and ternary interval generator provided.
- * The Case will use use an interval comparator for matching results.
- * @param param0 the first param to pass into the ternary operation
- * @param param1 the second param to pass into the ternary operation
- * @param param2 the third param to pass into the ternary operation
+ * @returns an array of Cases for operations over a range of inputs
+ * @param param0s array of inputs to try for the first param
+ * @param param1s array of inputs to try for the second param
+ * @param filter what interval filtering to apply
  * @param ops callbacks that implement generating an acceptance interval for a
- *           ternary operation.
+ *            binary operation
  */
-export function makeTernaryToF32IntervalCase(param0, param1, param2, ...ops) {
+export function generateBinaryToF32IntervalCases(param0s, param1s, filter, ...ops) {
+  return cartesianProduct(param0s, param1s).reduce((cases, e) => {
+    const c = makeBinaryToF32IntervalCase(e[0], e[1], filter, ...ops);
+    if (c !== undefined) {
+      cases.push(c);
+    }
+    return cases;
+  }, new Array());
+}
+
+/**
+ * @returns a Case for the params and ternary interval generator provided
+ * The Case will use use an interval comparator for matching results.
+ * @param param0 the first param to pass in
+ * @param param1 the second param to pass in
+ * @param param2 the third param to pass in
+ * @param filter what interval filtering to apply
+ * @param ops callbacks that implement generating an acceptance interval for a
+ *            ternary operation.
+ */
+function makeTernaryToF32IntervalCase(param0, param1, param2, filter, ...ops) {
   param0 = quantizeToF32(param0);
   param1 = quantizeToF32(param1);
   param2 = quantizeToF32(param2);
 
   const intervals = ops.map(o => o(param0, param1, param2));
+  if (filter === 'f32-only' && intervals.some(i => !i.isFinite())) {
+    return undefined;
+  }
   return {
     input: [f32(param0), f32(param1), f32(param2)],
     expected: anyOf(...intervals),
@@ -552,16 +674,39 @@ export function makeTernaryToF32IntervalCase(param0, param1, param2, ...ops) {
 }
 
 /**
- * Generates a Case for the param and vector interval generator provided.
- * @param param the param to pass into the operation
+ * @returns an array of Cases for operations over a range of inputs
+ * @param param0s array of inputs to try for the first param
+ * @param param1s array of inputs to try for the second param
+ * @param param2s array of inputs to try for the third param
+ * @param filter what interval filtering to apply
+ * @param ops callbacks that implement generating an acceptance interval for a
+ *            ternary operation.
+ */
+export function generateTernaryToF32IntervalCases(param0s, param1s, param2s, filter, ...ops) {
+  return cartesianProduct(param0s, param1s, param2s).reduce((cases, e) => {
+    const c = makeTernaryToF32IntervalCase(e[0], e[1], e[2], filter, ...ops);
+    if (c !== undefined) {
+      cases.push(c);
+    }
+    return cases;
+  }, new Array());
+}
+
+/**
+ * @returns a Case for the param and vector interval generator provided
+ * @param param the param to pass in
+ * @param filter what interval filtering to apply
  * @param ops callbacks that implement generating an acceptance interval for a
  *            vector.
  */
-export function makeVectorToF32IntervalCase(param, ...ops) {
+function makeVectorToF32IntervalCase(param, filter, ...ops) {
   param = param.map(quantizeToF32);
   const param_f32 = param.map(f32);
 
   const intervals = ops.map(o => o(param));
+  if (filter === 'f32-only' && intervals.some(i => !i.isFinite())) {
+    return undefined;
+  }
   return {
     input: [new Vector(param_f32)],
     expected: anyOf(...intervals),
@@ -569,19 +714,40 @@ export function makeVectorToF32IntervalCase(param, ...ops) {
 }
 
 /**
- * Generates a Case for the params and vector pair interval generator provided.
- * @param param0 the first param to pass into the operation
- * @param param1 the second param to pass into the operation
+ * @returns an array of Cases for operations over a range of inputs
+ * @param params array of inputs to try
+ * @param filter what interval filtering to apply
+ * @param ops callbacks that implement generating an acceptance interval for a
+ *            vector.
+ */
+export function generateVectorToF32IntervalCases(params, filter, ...ops) {
+  return params.reduce((cases, e) => {
+    const c = makeVectorToF32IntervalCase(e, filter, ...ops);
+    if (c !== undefined) {
+      cases.push(c);
+    }
+    return cases;
+  }, new Array());
+}
+
+/**
+ * @returns a Case for the params and vector pair interval generator provided
+ * @param param0 the first param to pass in
+ * @param param1 the second param to pass in
+ * @param filter what interval filtering to apply
  * @param ops callbacks that implement generating an acceptance interval for a
  *            pair of vectors.
  */
-export function makeVectorPairToF32IntervalCase(param0, param1, ...ops) {
+function makeVectorPairToF32IntervalCase(param0, param1, filter, ...ops) {
   param0 = param0.map(quantizeToF32);
   param1 = param1.map(quantizeToF32);
   const param0_f32 = param0.map(f32);
   const param1_f32 = param1.map(f32);
 
   const intervals = ops.map(o => o(param0, param1));
+  if (filter === 'f32-only' && intervals.some(i => !i.isFinite())) {
+    return undefined;
+  }
   return {
     input: [new Vector(param0_f32), new Vector(param1_f32)],
     expected: anyOf(...intervals),
@@ -589,18 +755,300 @@ export function makeVectorPairToF32IntervalCase(param0, param1, ...ops) {
 }
 
 /**
- * Generates a Case for the param and vector of intervals generator provided.
- * @param param the param to pass into the operation
- * @param ops callbacks that implement generating an vector of acceptance intervals for a
- *            vector.
+ * @returns an array of Cases for operations over a range of inputs
+ * @param param0s array of inputs to try for the first input
+ * @param param1s array of inputs to try for the second input
+ * @param filter what interval filtering to apply
+ * @param ops callbacks that implement generating an acceptance interval for a
+ *            pair of vectors.
  */
-export function makeVectorToVectorIntervalCase(param, ...ops) {
+export function generateVectorPairToF32IntervalCases(param0s, param1s, filter, ...ops) {
+  return cartesianProduct(param0s, param1s).reduce((cases, e) => {
+    const c = makeVectorPairToF32IntervalCase(e[0], e[1], filter, ...ops);
+    if (c !== undefined) {
+      cases.push(c);
+    }
+    return cases;
+  }, new Array());
+}
+
+/**
+ * @returns a Case for the param and vector of intervals generator provided
+ * @param param the param to pass in
+ * @param filter what interval filtering to apply
+ * @param ops callbacks that implement generating an vector of acceptance
+ *            intervals for a vector.
+ */
+function makeVectorToVectorCase(param, filter, ...ops) {
   param = param.map(quantizeToF32);
   const param_f32 = param.map(f32);
 
-  const intervals = ops.map(o => o(param));
+  const vectors = ops.map(o => o(param));
+  if (filter === 'f32-only' && vectors.some(v => !v.every(e => e.isFinite()))) {
+    return undefined;
+  }
   return {
     input: [new Vector(param_f32)],
-    expected: anyOf(...intervals),
+    expected: anyOf(...vectors),
   };
+}
+
+/**
+ * @returns an array of Cases for operations over a range of inputs
+ * @param params array of inputs to try
+ * @param filter what interval filtering to apply
+ * @param ops callbacks that implement generating an vector of acceptance
+ *            intervals for a vector.
+ */
+export function generateVectorToVectorCases(params, filter, ...ops) {
+  return params.reduce((cases, e) => {
+    const c = makeVectorToVectorCase(e, filter, ...ops);
+    if (c !== undefined) {
+      cases.push(c);
+    }
+    return cases;
+  }, new Array());
+}
+
+/**
+ * @returns a Case for the params and vector of intervals generator provided
+ * @param param0 the first param to pass in
+ * @param param1 the second param to pass in
+ * @param filter what interval filtering to apply
+ * @param ops callbacks that implement generating an vector of acceptance
+ *            intervals for a pair of vectors.
+ */
+function makeVectorPairToVectorCase(param0, param1, filter, ...ops) {
+  param0 = param0.map(quantizeToF32);
+  param1 = param1.map(quantizeToF32);
+  const param0_f32 = param0.map(f32);
+  const param1_f32 = param1.map(f32);
+
+  const vectors = ops.map(o => o(param0, param1));
+  if (filter === 'f32-only' && vectors.some(v => !v.every(e => e.isFinite()))) {
+    return undefined;
+  }
+  return {
+    input: [new Vector(param0_f32), new Vector(param1_f32)],
+    expected: anyOf(...vectors),
+  };
+}
+
+/**
+ * @returns an array of Cases for operations over a range of inputs
+ * @param param0s array of inputs to try for the first input
+ * @param param1s array of inputs to try for the second input
+ * @param filter what interval filtering to apply
+ * @param ops callbacks that implement generating an vector of acceptance
+ *            intervals for a pair of vectors.
+ */
+export function generateVectorPairToVectorCases(param0s, param1s, filter, ...ops) {
+  return cartesianProduct(param0s, param1s).reduce((cases, e) => {
+    const c = makeVectorPairToVectorCase(e[0], e[1], filter, ...ops);
+    if (c !== undefined) {
+      cases.push(c);
+    }
+    return cases;
+  }, new Array());
+}
+
+/**
+ * @returns a Case for the param and vector of intervals generator provided
+ * The input is treated as an unsigned int.
+ * @param param the param to pass in
+ * @param filter what interval filtering to apply
+ * @param ops callbacks that implement generating an acceptance
+ *            interval for an unsigned int.
+ */
+function makeU32ToVectorCase(param, filter, ...ops) {
+  param = Math.trunc(param);
+  const param_u32 = u32(param);
+
+  const vectors = ops.map(o => o(param));
+  if (filter === 'f32-only' && vectors.some(v => !v.every(e => e.isFinite()))) {
+    return undefined;
+  }
+  return {
+    input: param_u32,
+    expected: anyOf(...vectors),
+  };
+}
+
+/**
+ * @returns an array of Cases for operations over a range of inputs
+ * The input is treated as an unsigned int.
+ * @param params array of inputs to try
+ * @param filter what interval filtering to apply
+ * @param ops callbacks that implement generating an acceptance
+ *            interval for an unsigned int.
+ */
+export function generateU32ToVectorCases(params, filter, ...ops) {
+  return params.reduce((cases, e) => {
+    const c = makeU32ToVectorCase(e, filter, ...ops);
+    if (c !== undefined) {
+      cases.push(c);
+    }
+    return cases;
+  }, new Array());
+}
+
+/**
+ * A function that performs a binary operation on x and y, and returns the expected
+ * result.
+ */
+
+/**
+ * @returns an array of Cases for operations over a range of inputs
+ * @param param0s array of inputs to try for the first param
+ * @param param1s array of inputs to try for the second param
+ * @param op callback called on each pair of inputs to produce each case
+ */
+export function generateBinaryToI32Cases(params0s, params1s, op) {
+  return cartesianProduct(params0s, params1s).reduce((cases, e) => {
+    const expected = op(e[0], e[1]);
+    if (expected !== undefined) {
+      cases.push({ input: [i32(e[0]), i32(e[1])], expected: i32(expected) });
+    }
+    return cases;
+  }, new Array());
+}
+
+/**
+ * @returns an array of Cases for operations over a range of inputs
+ * @param param0s array of inputs to try for the first param
+ * @param param1s array of inputs to try for the second param
+ * @param op callback called on each pair of inputs to produce each case
+ */
+export function generateBinaryToU32Cases(params0s, params1s, op) {
+  return cartesianProduct(params0s, params1s).reduce((cases, e) => {
+    const expected = op(e[0], e[1]);
+    if (expected !== undefined) {
+      cases.push({ input: [u32(e[0]), u32(e[1])], expected: u32(expected) });
+    }
+    return cases;
+  }, new Array());
+}
+
+/**
+ * @returns a Case for the input params with op applied
+ * @param scalar scalar param
+ * @param vector vector param (2, 3, or 4 elements)
+ * @param op the op to apply to scalar and vector
+ * @param quantize function to quantize all values in vectors and scalars
+ * @param scalarize function to convert numbers to Scalars
+ */
+function makeScalarVectorBinaryToVectorCase(scalar, vector, op, quantize, scalarize) {
+  scalar = quantize(scalar);
+  vector = vector.map(quantize);
+  const result = vector.map(v => op(scalar, v));
+  if (result.includes(undefined)) {
+    return undefined;
+  }
+  return {
+    input: [scalarize(scalar), new Vector(vector.map(scalarize))],
+    expected: new Vector(result.map(scalarize)),
+  };
+}
+
+/**
+ * @returns array of Case for the input params with op applied
+ * @param scalars array of scalar params
+ * @param vectors array of vector params (2, 3, or 4 elements)
+ * @param op the op to apply to each pair of scalar and vector
+ * @param quantize function to quantize all values in vectors and scalars
+ * @param scalarize function to convert numbers to Scalars
+ */
+function generateScalarVectorBinaryToVectorCases(scalars, vectors, op, quantize, scalarize) {
+  const cases = new Array();
+  scalars.forEach(s => {
+    vectors.forEach(v => {
+      const c = makeScalarVectorBinaryToVectorCase(s, v, op, quantize, scalarize);
+      if (c !== undefined) {
+        cases.push(c);
+      }
+    });
+  });
+  return cases;
+}
+
+/**
+ * @returns a Case for the input params with op applied
+ * @param vector vector param (2, 3, or 4 elements)
+ * @param scalar scalar param
+ * @param op the op to apply to vector and scalar
+ * @param quantize function to quantize all values in vectors and scalars
+ * @param scalarize function to convert numbers to Scalars
+ */
+function makeVectorScalarBinaryToVectorCase(vector, scalar, op, quantize, scalarize) {
+  vector = vector.map(quantize);
+  scalar = quantize(scalar);
+  const result = vector.map(v => op(v, scalar));
+  if (result.includes(undefined)) {
+    return undefined;
+  }
+  return {
+    input: [new Vector(vector.map(scalarize)), scalarize(scalar)],
+    expected: new Vector(result.map(scalarize)),
+  };
+}
+
+/**
+ * @returns array of Case for the input params with op applied
+ * @param vectors array of vector params (2, 3, or 4 elements)
+ * @param scalars array of scalar params
+ * @param op the op to apply to each pair of vector and scalar
+ * @param quantize function to quantize all values in vectors and scalars
+ * @param scalarize function to convert numbers to Scalars
+ */
+function generateVectorScalarBinaryToVectorCases(vectors, scalars, op, quantize, scalarize) {
+  const cases = new Array();
+  scalars.forEach(s => {
+    vectors.forEach(v => {
+      const c = makeVectorScalarBinaryToVectorCase(v, s, op, quantize, scalarize);
+      if (c !== undefined) {
+        cases.push(c);
+      }
+    });
+  });
+  return cases;
+}
+
+/**
+ * @returns array of Case for the input params with op applied
+ * @param scalars array of scalar params
+ * @param vectors array of vector params (2, 3, or 4 elements)
+ * @param op he op to apply to each pair of scalar and vector
+ */
+export function generateU32VectorBinaryToVectorCases(scalars, vectors, op) {
+  return generateScalarVectorBinaryToVectorCases(scalars, vectors, op, quantizeToU32, u32);
+}
+
+/**
+ * @returns array of Case for the input params with op applied
+ * @param vectors array of vector params (2, 3, or 4 elements)
+ * @param scalars array of scalar params
+ * @param op he op to apply to each pair of vector and scalar
+ */
+export function generateVectorU32BinaryToVectorCases(vectors, scalars, op) {
+  return generateVectorScalarBinaryToVectorCases(vectors, scalars, op, quantizeToU32, u32);
+}
+
+/**
+ * @returns array of Case for the input params with op applied
+ * @param scalars array of scalar params
+ * @param vectors array of vector params (2, 3, or 4 elements)
+ * @param op he op to apply to each pair of scalar and vector
+ */
+export function generateI32VectorBinaryToVectorCases(scalars, vectors, op) {
+  return generateScalarVectorBinaryToVectorCases(scalars, vectors, op, quantizeToI32, i32);
+}
+
+/**
+ * @returns array of Case for the input params with op applied
+ * @param vectors array of vector params (2, 3, or 4 elements)
+ * @param scalars array of scalar params
+ * @param op he op to apply to each pair of vector and scalar
+ */
+export function generateVectorI32BinaryToVectorCases(vectors, scalars, op) {
+  return generateVectorScalarBinaryToVectorCases(vectors, scalars, op, quantizeToI32, i32);
 }

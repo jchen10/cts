@@ -30,7 +30,7 @@ beforeAllSubcases((t) => {
     t.selectDeviceForQueryTypeOrSkipTestCase(type);
   }
 }).
-fn(async (t) => {
+fn((t) => {
   const type = t.params.type;
   const querySet = type === undefined ? undefined : createQuerySetWithType(t, type, 1);
 
@@ -99,7 +99,7 @@ beforeAllSubcases((t) => {
 
   t.selectDeviceForQueryTypeOrSkipTestCase(queryTypes);
 }).
-fn(async (t) => {
+fn((t) => {
   const { type, queryIndex } = t.params;
 
   const count = 2;
@@ -121,13 +121,13 @@ paramsSubcasesOnly((u) => u.combine('querySetState', ['valid', 'invalid'])).
 beforeAllSubcases((t) => {
   t.selectDeviceForQueryTypeOrSkipTestCase('timestamp');
 }).
-fn(async (t) => {
+fn((t) => {
   const { querySetState } = t.params;
 
   const querySet = t.createQuerySetWithState(querySetState, {
     type: 'timestamp',
-    count: 2 });
-
+    count: 2
+  });
 
   const encoder = t.createEncoder('non-pass');
   encoder.encoder.writeTimestamp(querySet, 0);
@@ -141,14 +141,14 @@ beforeAllSubcases((t) => {
   t.selectDeviceForQueryTypeOrSkipTestCase('timestamp');
   t.selectMismatchedDeviceOrSkipTestCase('timestamp-query');
 }).
-fn(async (t) => {
+fn((t) => {
   const { mismatched } = t.params;
-  const device = mismatched ? t.mismatchedDevice : t.device;
+  const sourceDevice = mismatched ? t.mismatchedDevice : t.device;
 
-  const querySet = device.createQuerySet({
+  const querySet = sourceDevice.createQuerySet({
     type: 'timestamp',
-    count: 2 });
-
+    count: 2
+  });
   t.trackForCleanup(querySet);
 
   const encoder = t.createEncoder('non-pass');

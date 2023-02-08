@@ -13,7 +13,7 @@ export const g = makeTestGroup(CreateRenderPipelineValidationTest);
 g.test('basic')
   .desc(`Test basic usage of createRenderPipeline.`)
   .params(u => u.combine('isAsync', [false, true]))
-  .fn(async t => {
+  .fn(t => {
     const { isAsync } = t.params;
     const descriptor = t.getDescriptor();
 
@@ -32,7 +32,7 @@ state (and thus has no color state), and can be created with or without depth st
       .combine('depthStencilFormat', ['depth24plus', 'depth24plus-stencil8', 'depth32float', ''])
       .combine('hasColor', [false, true])
   )
-  .fn(async t => {
+  .fn(t => {
     const { isAsync, depthStencilFormat, hasColor } = t.params;
 
     let depthStencilState;
@@ -61,12 +61,12 @@ g.test('pipeline_layout,device_mismatch')
   .beforeAllSubcases(t => {
     t.selectMismatchedDeviceOrSkipTestCase(undefined);
   })
-  .fn(async t => {
+  .fn(t => {
     const { isAsync, mismatched } = t.params;
 
-    const device = mismatched ? t.mismatchedDevice : t.device;
+    const sourceDevice = mismatched ? t.mismatchedDevice : t.device;
 
-    const layout = device.createPipelineLayout({ bindGroupLayouts: [] });
+    const layout = sourceDevice.createPipelineLayout({ bindGroupLayouts: [] });
 
     const format = 'rgba8unorm';
     const descriptor = {
@@ -75,15 +75,12 @@ g.test('pipeline_layout,device_mismatch')
         module: t.device.createShaderModule({
           code: kDefaultVertexShaderCode,
         }),
-
         entryPoint: 'main',
       },
-
       fragment: {
         module: t.device.createShaderModule({
           code: kDefaultFragmentShaderCode,
         }),
-
         entryPoint: 'main',
         targets: [{ format }],
       },

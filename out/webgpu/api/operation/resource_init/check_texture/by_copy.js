@@ -17,10 +17,10 @@ subresourceRange) =>
     t.expectSingleColor(texture, format, {
       size: [t.textureWidth, t.textureHeight, t.textureDepth],
       dimension: params.dimension,
-      slice: layer,
+      slice: params.dimension === '2d' ? layer : 0,
       layout: { mipLevel, aspect: params.aspect },
-      exp: t.stateToTexelComponents[state] });
-
+      exp: t.stateToTexelComponents[state]
+    });
   }
 };
 
@@ -45,8 +45,8 @@ subresourceRange) =>
       dimension: params.dimension,
       size: [width, height, depth],
       format: params.format,
-      usage: GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC });
-
+      usage: GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC
+    });
     t.trackForCleanup(dst);
 
     const commandEncoder = t.device.createCommandEncoder();
@@ -60,8 +60,8 @@ subresourceRange) =>
     t.expectSingleColor(dst, format, {
       size: [width, height, depth],
       exp: t.stateToTexelComponents[state],
-      layout: { mipLevel: 0, aspect: params.aspect } });
-
+      layout: { mipLevel: 0, aspect: params.aspect }
+    });
   }
 };
 //# sourceMappingURL=by_copy.js.map

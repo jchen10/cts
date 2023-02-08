@@ -264,7 +264,6 @@ class F extends CopyToTextureUtils {
         bytesPerRow: width * 4,
         rowsPerImage: height,
       },
-
       {
         width,
         height,
@@ -324,7 +323,6 @@ class F extends CopyToTextureUtils {
         height: p.height,
         depthOrArrayLayers: 1,
       },
-
       format: p.dstColorFormat,
       usage:
         GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC | GPUTextureUsage.RENDER_ATTACHMENT,
@@ -336,17 +334,21 @@ class F extends CopyToTextureUtils {
 
     // For 2d canvas, get expected pixels with getImageData(), which returns unpremultiplied
     // values.
-    const expectedDestinationImage = this.getExpectedPixels(
-      expectedSourceImage,
-      p.width,
-      p.height,
-      expFormat,
-      p.srcDoFlipYDuringCopy,
-      {
+    const expectedDestinationImage = this.getExpectedDstPixelsFromSrcPixels({
+      srcPixels: expectedSourceImage,
+      srcOrigin: [0, 0],
+      srcSize: [p.width, p.height],
+      dstOrigin: [0, 0],
+      dstSize: [p.width, p.height],
+      subRectSize: [p.width, p.height],
+      format: expFormat,
+      flipSrcBeforeCopy: false,
+      srcDoFlipYDuringCopy: p.srcDoFlipYDuringCopy,
+      conversion: {
         srcPremultiplied: p.srcPremultiplied,
         dstPremultiplied: p.dstPremultiplied,
-      }
-    );
+      },
+    });
 
     this.doTestAndCheckResult(
       { source, origin: { x: 0, y: 0 }, flipY: p.srcDoFlipYDuringCopy },
@@ -356,7 +358,6 @@ class F extends CopyToTextureUtils {
         colorSpace: 'srgb',
         premultipliedAlpha: p.dstPremultiplied,
       },
-
       expectedDestinationImage,
       { width: p.width, height: p.height, depthOrArrayLayers: 1 },
       // 1.0 and 0.6 are representable precisely by all formats except rgb10a2unorm, but
@@ -408,7 +409,7 @@ g.test('copy_contents_from_2d_context_canvas')
       .combine('width', [1, 2, 4, 15])
       .combine('height', [1, 2, 4, 15])
   )
-  .fn(async t => {
+  .fn(t => {
     const { width, height, canvasType, dstAlphaMode } = t.params;
 
     const { canvas, expectedSourceData } = t.init2DCanvasContent({
@@ -469,7 +470,7 @@ g.test('copy_contents_from_gl_context_canvas')
       .combine('width', [1, 2, 4, 15])
       .combine('height', [1, 2, 4, 15])
   )
-  .fn(async t => {
+  .fn(t => {
     const { width, height, canvasType, contextName, srcPremultiplied, dstAlphaMode } = t.params;
 
     const { canvas, expectedSourceData } = t.initGLCanvasContent({
@@ -538,7 +539,7 @@ g.test('copy_contents_from_gpu_context_canvas')
   .beforeAllSubcases(t => {
     t.selectMismatchedDeviceOrSkipTestCase(undefined);
   })
-  .fn(async t => {
+  .fn(t => {
     const {
       width,
       height,
@@ -610,7 +611,7 @@ g.test('color_space_conversion')
       .combine('width', [1, 2, 4, 15, 255, 256])
       .combine('height', [1, 2, 4, 15, 255, 256])
   )
-  .fn(async t => {
+  .fn(t => {
     const {
       width,
       height,
@@ -633,26 +634,29 @@ g.test('color_space_conversion')
         GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC | GPUTextureUsage.RENDER_ATTACHMENT,
     });
 
-    const expectedDestinationImage = t.getExpectedPixels(
-      expectedSourceData,
-      width,
-      height,
+    const expectedDestinationImage = t.getExpectedDstPixelsFromSrcPixels({
+      srcPixels: expectedSourceData,
+      srcOrigin: [0, 0],
+      srcSize: [width, height],
+      dstOrigin: [0, 0],
+      dstSize: [width, height],
+      subRectSize: [width, height],
       // copyExternalImageToTexture does not perform gamma-encoding into `-srgb` formats.
-      kTextureFormatInfo[dstColorFormat].baseFormat ?? dstColorFormat,
+      format: kTextureFormatInfo[dstColorFormat].baseFormat ?? dstColorFormat,
+      flipSrcBeforeCopy: false,
       srcDoFlipYDuringCopy,
-      {
+      conversion: {
         srcPremultiplied: false,
         dstPremultiplied,
         srcColorSpace,
         dstColorSpace,
-      }
-    );
+      },
+    });
 
     const texelCompareOptions = {
       maxFractionalDiff: 0,
       maxDiffULPsForNormFormat: 1,
     };
-
     if (srcColorSpace !== dstColorSpace) {
       // Color space conversion seems prone to errors up to about 0.0003 on f32, 0.0007 on f16.
       texelCompareOptions.maxFractionalDiff = 0.001;
@@ -668,7 +672,6 @@ g.test('color_space_conversion')
         colorSpace: dstColorSpace,
         premultipliedAlpha: dstPremultiplied,
       },
-
       expectedDestinationImage,
       { width, height, depthOrArrayLayers: 1 },
       texelCompareOptions

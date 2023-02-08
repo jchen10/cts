@@ -61,7 +61,7 @@ and drawIndexedIndirect it should always be 0. Once there is an extension to all
 it should be added into drawCallTestParameter list.
 `;import { makeTestGroup } from '../../../common/framework/test_group.js';
 import { assert } from '../../../common/util/util.js';
-import { GPUTest } from '../../gpu_test.js';
+import { GPUTest, TextureTestMixin } from '../../gpu_test.js';
 
 // Encapsulates a draw call (either indexed or non-indexed)
 class DrawCall {
@@ -96,7 +96,7 @@ class DrawCall {
     vertexCount,
     partialLastNumber,
     offsetVertexBuffer,
-    keepInstanceStepModeBufferInRange })
+    keepInstanceStepModeBufferInRange
 
 
 
@@ -104,7 +104,7 @@ class DrawCall {
 
 
 
-  {
+  }) {
     this.test = test;
 
     // Default arguments (valid call)
@@ -239,8 +239,8 @@ class DrawCall {
     this.firstInstance]);
 
     return this.test.makeBufferWithContents(indirectArray, GPUBufferUsage.INDIRECT);
-  }}
-
+  }
+}
 
 // Parameterize different sized types
 
@@ -253,27 +253,27 @@ const typeInfoMap = {
   float32: {
     wgslType: 'f32',
     sizeInBytes: 4,
-    validationFunc: 'return valid(v);' },
-
+    validationFunc: 'return valid(v);'
+  },
   float32x2: {
     wgslType: 'vec2<f32>',
     sizeInBytes: 8,
-    validationFunc: 'return valid(v.x) && valid(v.y);' },
-
+    validationFunc: 'return valid(v.x) && valid(v.y);'
+  },
   float32x3: {
     wgslType: 'vec3<f32>',
     sizeInBytes: 12,
-    validationFunc: 'return valid(v.x) && valid(v.y) && valid(v.z);' },
-
+    validationFunc: 'return valid(v.x) && valid(v.y) && valid(v.z);'
+  },
   float32x4: {
     wgslType: 'vec4<f32>',
     sizeInBytes: 16,
     validationFunc: `return (valid(v.x) && valid(v.y) && valid(v.z) && valid(v.w)) ||
-                            (v.x == 0.0 && v.y == 0.0 && v.z == 0.0 && (v.w == 0.0 || v.w == 1.0));` } };
+                            (v.x == 0.0 && v.y == 0.0 && v.z == 0.0 && (v.w == 0.0 || v.w == 1.0));`
+  }
+};
 
-
-
-class F extends GPUTest {
+class F extends TextureTestMixin(GPUTest) {
   generateBufferContents(
   numVertices,
   attributesPerBuffer,
@@ -319,9 +319,9 @@ class F extends GPUTest {
           map((_, i) => ({
             shaderLocation: currAttribute++,
             offset: i * typeInfo.sizeInBytes,
-            format })) });
-
-
+            format
+          }))
+        });
       }
     }
     return buffers;
@@ -334,7 +334,7 @@ class F extends GPUTest {
     typeInfo,
     vertexIndexOffset,
     numVertices,
-    isIndexed })
+    isIndexed
 
 
 
@@ -343,7 +343,7 @@ class F extends GPUTest {
 
 
 
-  {
+  }) {
     // Create layout and attributes listing
     let layoutStr = 'struct Attributes {';
     const attributeNames = [];
@@ -404,7 +404,7 @@ class F extends GPUTest {
     vertexIndexOffset,
     numVertices,
     isIndexed,
-    buffers })
+    buffers
 
 
 
@@ -414,7 +414,7 @@ class F extends GPUTest {
 
 
 
-  {
+  }) {
     const pipeline = this.device.createRenderPipeline({
       layout: 'auto',
       vertex: {
@@ -426,24 +426,24 @@ class F extends GPUTest {
             typeInfo,
             vertexIndexOffset,
             numVertices,
-            isIndexed }) }),
-
-
+            isIndexed
+          })
+        }),
         entryPoint: 'main',
-        buffers },
-
+        buffers
+      },
       fragment: {
         module: this.device.createShaderModule({
           code: `
             @fragment fn main() -> @location(0) vec4<f32> {
               return vec4<f32>(1.0, 0.0, 0.0, 1.0);
-            }` }),
-
+            }`
+        }),
         entryPoint: 'main',
-        targets: [{ format: 'rgba8unorm' }] },
-
-      primitive: { topology: 'point-list' } });
-
+        targets: [{ format: 'rgba8unorm' }]
+      },
+      primitive: { topology: 'point-list' }
+    });
     return pipeline;
   }
 
@@ -456,7 +456,7 @@ class F extends GPUTest {
     numVertices,
     isIndexed,
     isIndirect,
-    drawCall })
+    drawCall
 
 
 
@@ -467,7 +467,7 @@ class F extends GPUTest {
 
 
 
-  {
+  }) {
     // Vertex buffer descriptors
     const buffers = this.generateVertexBufferDescriptors(
     bufferCount,
@@ -484,14 +484,14 @@ class F extends GPUTest {
       vertexIndexOffset,
       numVertices,
       isIndexed,
-      buffers });
-
+      buffers
+    });
 
     const colorAttachment = this.device.createTexture({
       format: 'rgba8unorm',
       size: { width: 2, height: 1, depthOrArrayLayers: 1 },
-      usage: GPUTextureUsage.COPY_SRC | GPUTextureUsage.RENDER_ATTACHMENT });
-
+      usage: GPUTextureUsage.COPY_SRC | GPUTextureUsage.RENDER_ATTACHMENT
+    });
     const colorAttachmentView = colorAttachment.createView();
 
     const encoder = this.device.createCommandEncoder();
@@ -501,10 +501,10 @@ class F extends GPUTest {
         view: colorAttachmentView,
         storeOp: 'store',
         clearValue: { r: 0.0, g: 1.0, b: 0.0, a: 1.0 },
-        loadOp: 'clear' }] });
+        loadOp: 'clear'
+      }]
 
-
-
+    });
     pass.setPipeline(pipeline);
 
     // Run the draw variant
@@ -514,14 +514,11 @@ class F extends GPUTest {
     this.device.queue.submit([encoder.finish()]);
 
     // Validate we see green on the left pixel, showing that no failure case is detected
-    this.expectSinglePixelIn2DTexture(
-    colorAttachment,
-    'rgba8unorm',
-    { x: 0, y: 0 },
-    { exp: new Uint8Array([0x00, 0xff, 0x00, 0xff]), layout: { mipLevel: 0 } });
+    this.expectSinglePixelComparisonsAreOkInTexture({ texture: colorAttachment }, [
+    { coord: { x: 0, y: 0 }, exp: new Uint8Array([0x00, 0xff, 0x00, 0xff]) }]);
 
-  }}
-
+  }
+}
 
 export const g = makeTestGroup(F);
 
@@ -551,7 +548,7 @@ combine('offsetVertexBuffer', [false, true]).
 combine('errorScale', [0, 1, 4, 10 ** 2, 10 ** 4, 10 ** 6]).
 unless((p) => p.drawCallTestParameter === 'instanceCount' && p.errorScale > 10 ** 4) // To avoid timeout
 ).
-fn(async (t) => {
+fn((t) => {
   const p = t.params;
   const typeInfo = typeInfoMap[p.type];
 
@@ -605,7 +602,7 @@ fn(async (t) => {
     numVertices,
     isIndexed: p.indexed,
     isIndirect: p.indirect,
-    drawCall: draw });
-
+    drawCall: draw
+  });
 });
 //# sourceMappingURL=robust_access_vertex.spec.js.map

@@ -78,20 +78,16 @@ function makeTestPipeline(test, buffers) {
       module: test.device.createShaderModule({
         code: test.getNoOpShaderCode('VERTEX'),
       }),
-
       entryPoint: 'main',
       buffers: bufferLayouts,
     },
-
     fragment: {
       module: test.device.createShaderModule({
         code: test.getNoOpShaderCode('FRAGMENT'),
       }),
-
       entryPoint: 'main',
       targets: [{ format: 'rgba8unorm', writeMask: 0 }],
     },
-
     primitive: { topology: 'triangle-list' },
   });
 }
@@ -115,7 +111,6 @@ function makeTestPipelineWithVertexAndInstanceBuffer(
         },
       ],
     },
-
     {
       slot: 7,
       stepMode: 'instance',
@@ -182,7 +177,7 @@ In this test we test that a small buffer bound to unused buffer slot won't cause
       .combine('bufferOffset', [0, 4])
       .combine('boundSize', [0, 1])
   )
-  .fn(async t => {
+  .fn(t => {
     const {
       smallIndexBuffer,
       smallVertexBuffer,
@@ -237,14 +232,12 @@ In this test we test that a small buffer bound to unused buffer slot won't cause
             ...kDefaultParameterForDraw,
             ...kDefaultParameterForNonIndexedDraw,
           };
-
           callDraw(t, renderEncoder, drawType, drawParam);
         } else {
           const drawParam = {
             ...kDefaultParameterForDraw,
             ...kDefaultParameterForIndexedDraw,
           };
-
           callDrawIndexed(t, renderEncoder, drawType, drawParam);
         }
 
@@ -275,7 +268,7 @@ drawIndexedIndirect as it is GPU-validated.
       .beginSubcases()
       .combine('indexFormat', ['uint16', 'uint32'])
   )
-  .fn(async t => {
+  .fn(t => {
     const {
       indexFormat,
       bindingSizeInElements,
@@ -292,7 +285,6 @@ drawIndexedIndirect as it is GPU-validated.
       size: bufferSize,
       usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
     };
-
     const indexBuffer = t.createBufferWithState('valid', desc);
 
     const drawCallParam = {
@@ -395,7 +387,7 @@ success/error as expected. Such set of buffer parameters should include cases li
       .filter(p => p.IStride0 === (p.firstInstance + p.instanceCount === 0))
       .unless(p => p.vertexCount === 10000 && p.instanceCount === 10000)
   )
-  .fn(async t => {
+  .fn(t => {
     const {
       type: drawType,
       VBSize: boundVertexBufferSizeState,
@@ -472,7 +464,6 @@ success/error as expected. Such set of buffer parameters should include cases li
       size: vertexBufferSize,
       usage: GPUBufferUsage.VERTEX,
     });
-
     const instanceBuffer = t.createBufferWithState('valid', {
       size: instanceBufferSize,
       usage: GPUBufferUsage.VERTEX,
@@ -520,7 +511,6 @@ success/error as expected. Such set of buffer parameters should include cases li
             size: indexBufferSize,
             usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
           };
-
           const indexBuffer = t.createBufferWithState('valid', desc);
 
           const drawParam = {
@@ -567,7 +557,7 @@ buffer slot and index buffer will cause no validation error, with completely/par
       .combine('indexBoundOffestFactor', [0, 0.5, 1, 1.5, 2])
       .combine('arrayStrideState', ['zero', 'exact', 'oversize'])
   )
-  .fn(async t => {
+  .fn(t => {
     const {
       drawType,
       vertexBoundOffestFactor,
@@ -678,14 +668,12 @@ buffer slot and index buffer will cause no validation error, with completely/par
             ...kDefaultParameterForDraw,
             ...kDefaultParameterForNonIndexedDraw,
           };
-
           callDraw(t, renderEncoder, drawType, drawParam);
         } else {
           const drawParam = {
             ...kDefaultParameterForDraw,
             ...kDefaultParameterForIndexedDraw,
           };
-
           callDrawIndexed(t, renderEncoder, drawType, drawParam);
         }
 
@@ -728,7 +716,7 @@ and checks whether GPUCommandEncoder.finish() causes a validation error.
       .beginSubcases()
       .expand('drawCount', p => new Set([0, p.maxDrawCount, p.maxDrawCount + 1]))
   )
-  .fn(async t => {
+  .fn(t => {
     const { bundleFirstHalf, bundleSecondHalf, maxDrawCount, drawCount } = t.params;
 
     const colorFormat = 'rgba8unorm';
@@ -750,15 +738,12 @@ and checks whether GPUCommandEncoder.finish() causes a validation error.
             }
           `,
         }),
-
         entryPoint: 'main',
       },
-
       fragment: {
         module: t.device.createShaderModule({
           code: `@fragment fn main() {}`,
         }),
-
         entryPoint: 'main',
         targets: [{ format: colorFormat, writeMask: 0 }],
       },

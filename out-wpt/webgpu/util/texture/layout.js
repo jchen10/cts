@@ -73,7 +73,8 @@ export function getTextureSubCopyLayout(
 
   assert(
     copySize_.width % blockWidth === 0 && copySize_.height % blockHeight === 0,
-    'copySize must be a multiple of the block size'
+    () =>
+      `copySize (${copySize_.width},${copySize_.height}) must be a multiple of the block size (${blockWidth},${blockHeight})`
   );
 
   const copySizeBlocks = {
@@ -180,7 +181,6 @@ export function createTextureUploadBuffer(
     size: byteLength,
     usage: GPUBufferUsage.COPY_SRC,
   });
-
   const mapping = buffer.getMappedRange();
 
   assert(texelValue.byteLength === bytesPerBlock);
@@ -259,7 +259,6 @@ export function dataBytesForCopyOrOverestimate({ layout, format, copySize: copyS
     height: copyExtent.height / info.blockHeight,
     depthOrArrayLayers: copyExtent.depthOrArrayLayers,
   };
-
   const bytesInLastRow = sizeInBlocks.width * info.bytesPerBlock;
 
   let valid = true;

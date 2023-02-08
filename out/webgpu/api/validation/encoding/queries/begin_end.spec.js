@@ -36,7 +36,7 @@ paramsSubcasesOnly([
 { begin: 1, end: 2 },
 { begin: 2, end: 1 }]).
 
-fn(async (t) => {
+fn((t) => {
   const { begin, end } = t.params;
 
   const occlusionQuerySet = createQuerySetWithType(t, 'occlusion', 2);
@@ -65,7 +65,7 @@ paramsSubcasesOnly([
 { calls: [0, 0, 'end', 'end'], _valid: false },
 { calls: [0, 1, 'end', 'end'], _valid: false }]).
 
-fn(async (t) => {
+fn((t) => {
   const { calls, _valid } = t.params;
 
   const occlusionQuerySet = createQuerySetWithType(t, 'occlusion', 2);
@@ -90,7 +90,7 @@ Tests that two disjoint occlusion queries cannot be begun with same query index 
   `).
 
 paramsSubcasesOnly((u) => u.combine('isOnSameRenderPass', [false, true])).
-fn(async (t) => {
+fn((t) => {
   const querySet = createQuerySetWithType(t, 'occlusion', 1);
 
   const encoder = t.device.createCommandEncoder();
@@ -130,34 +130,34 @@ paramsSubcasesOnly([
   begin: 'occlusion',
   nest: 'pipeline-statistics',
   end: 'pipeline-statistics',
-  _valid: true },
-
+  _valid: true
+},
 {
   begin: 'pipeline-statistics',
   nest: 'timestamp',
   end: 'pipeline-statistics',
-  _valid: true },
-
+  _valid: true
+},
 {
   begin: 'pipeline-statistics',
   nest: 'pipeline-statistics',
   end: 'pipeline-statistics',
-  _valid: false },
-
+  _valid: false
+},
 {
   begin: 'pipeline-statistics',
   nest: 'occlusion',
   end: 'pipeline-statistics',
-  _valid: true },
-
+  _valid: true
+},
 { begin: 'pipeline-statistics', nest: 'occlusion', end: 'occlusion', _valid: true },
 { begin: 'timestamp', nest: 'occlusion', end: 'occlusion', _valid: true },
 {
   begin: 'timestamp',
   nest: 'pipeline-statistics',
   end: 'pipeline-statistics',
-  _valid: true }]).
-
+  _valid: true
+}]).
 
 unimplemented();
 //# sourceMappingURL=begin_end.spec.js.map

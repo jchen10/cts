@@ -8,33 +8,33 @@ import { GPUTest } from '../../../gpu_test.js';
 
 export const g = makeTestGroup(GPUTest);
 
-g.test('empty').fn(async (t) => {
+g.test('empty').fn((t) => {
   const encoder = t.device.createCommandEncoder();
   const cmd = encoder.finish();
   t.device.queue.submit([cmd]);
 });
 
-g.test('b2t2b').fn(async (t) => {
+g.test('b2t2b').fn((t) => {
   const data = new Uint32Array([0x01020304]);
 
   const src = t.device.createBuffer({
     mappedAtCreation: true,
     size: 4,
-    usage: GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST });
-
+    usage: GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
+  });
   memcpy({ src: data }, { dst: src.getMappedRange() });
   src.unmap();
 
   const dst = t.device.createBuffer({
     size: 4,
-    usage: GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST });
-
+    usage: GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
+  });
 
   const mid = t.device.createTexture({
     size: { width: 1, height: 1, depthOrArrayLayers: 1 },
     format: 'rgba8uint',
-    usage: GPUTextureUsage.COPY_SRC | GPUTextureUsage.COPY_DST });
-
+    usage: GPUTextureUsage.COPY_SRC | GPUTextureUsage.COPY_DST
+  });
 
   const encoder = t.device.createCommandEncoder();
   encoder.copyBufferToTexture(
@@ -52,27 +52,27 @@ g.test('b2t2b').fn(async (t) => {
   t.expectGPUBufferValuesEqual(dst, data);
 });
 
-g.test('b2t2t2b').fn(async (t) => {
+g.test('b2t2t2b').fn((t) => {
   const data = new Uint32Array([0x01020304]);
 
   const src = t.device.createBuffer({
     mappedAtCreation: true,
     size: 4,
-    usage: GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST });
-
+    usage: GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
+  });
   memcpy({ src: data }, { dst: src.getMappedRange() });
   src.unmap();
 
   const dst = t.device.createBuffer({
     size: 4,
-    usage: GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST });
-
+    usage: GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
+  });
 
   const midDesc = {
     size: { width: 1, height: 1, depthOrArrayLayers: 1 },
     format: 'rgba8uint',
-    usage: GPUTextureUsage.COPY_SRC | GPUTextureUsage.COPY_DST };
-
+    usage: GPUTextureUsage.COPY_SRC | GPUTextureUsage.COPY_DST
+  };
   const mid1 = t.device.createTexture(midDesc);
   const mid2 = t.device.createTexture(midDesc);
 

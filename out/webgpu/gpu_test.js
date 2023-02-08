@@ -1,6 +1,13 @@
 /**
 * AUTO-GENERATED - DO NOT EDIT. Source: https://github.com/gpuweb/cts
-**/import { Fixture, SubcaseBatchState } from '../common/framework/fixture.js';import { assert,
+**/import { Fixture,
+
+
+SubcaseBatchState } from
+
+'../common/framework/fixture.js';
+import {
+assert,
 range,
 
 
@@ -12,25 +19,30 @@ import {
 
 kTextureFormatInfo,
 kQueryTypeInfo,
-resolvePerAspectFormat } from
+resolvePerAspectFormat,
+kEncodableTextureFormats } from
 './capability_info.js';
 import { makeBufferWithContents } from './util/buffer.js';
-import {
-checkElementsEqual,
-checkElementsBetween,
-checkElementsFloat16Between } from
-'./util/check_contents.js';
+import { checkElementsEqual, checkElementsBetween } from './util/check_contents.js';
 import { CommandBufferMaker } from './util/command_buffer_maker.js';
+
 import { DevicePool } from './util/device_pool.js';
 import { align, roundDown } from './util/math.js';
-import { makeTextureWithContents } from './util/texture.js';
+import { createTextureFromTexelView, createTextureFromTexelViews } from './util/texture.js';
 import {
 getTextureCopyLayout,
 getTextureSubCopyLayout } from
 
 './util/texture/layout.js';
 import { kTexelRepresentationInfo } from './util/texture/texel_data.js';
+import { TexelView } from './util/texture/texel_view.js';
+import {
 
+
+
+textureContentIsOKByT2B } from
+'./util/texture/texture_ok.js';
+import { reifyOrigin3D } from './util/unions.js';
 
 const devicePool = new DevicePool();
 
@@ -56,8 +68,8 @@ descriptor)
     return { requiredFeatures: [descriptor] };
   } else if (descriptor instanceof Array) {
     return {
-      requiredFeatures: descriptor.filter((f) => f !== undefined) };
-
+      requiredFeatures: descriptor.filter((f) => f !== undefined)
+    };
   } else {
     return descriptor;
   }
@@ -164,8 +176,8 @@ export class GPUTestSubcaseBatchState extends SubcaseBatchState {
 
     // Suppress uncaught promise rejection (we'll catch it later).
     this.mismatchedProvider.catch(() => {});
-  }}
-
+  }
+}
 
 /**
  * Base fixture for WebGPU tests.
@@ -218,8 +230,8 @@ export class GPUTest extends Fixture {
 
     const dst = this.device.createBuffer({
       size,
-      usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST });
-
+      usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
+    });
     this.trackForCleanup(dst);
 
     const c = this.device.createCommandEncoder();
@@ -258,13 +270,13 @@ export class GPUTest extends Fixture {
     srcByteOffset = 0,
     method = 'copy',
     type,
-    typedLength })
+    typedLength
 
 
 
 
 
-
+  })
   {
     assert(
     srcByteOffset % type.BYTES_PER_ELEMENT === 0,
@@ -302,8 +314,8 @@ export class GPUTest extends Fixture {
       cleanup() {
         mappable.unmap();
         mappable.destroy();
-      } };
-
+      }
+    };
   }
 
   /**
@@ -319,21 +331,21 @@ export class GPUTest extends Fixture {
     type,
     typedLength,
     method = 'copy',
-    mode = 'fail' })
+    mode = 'fail'
 
 
 
 
 
 
-
+  })
   {
     const readbackPromise = this.readGPUBufferRangeTyped(src, {
       srcByteOffset,
       type,
       typedLength,
-      method });
-
+      method
+    });
     this.eventualAsyncExpectation(async (niceStack) => {
       const readback = await readbackPromise;
       this.expectOK(check(readback.data), { mode, niceStack });
@@ -355,8 +367,8 @@ export class GPUTest extends Fixture {
       type: expected.constructor,
       typedLength: expected.length,
       method,
-      mode });
-
+      mode
+    });
   }
 
   /**
@@ -371,13 +383,13 @@ export class GPUTest extends Fixture {
     expectedValue,
     numRows,
     minBytesPerRow,
-    bytesPerRow })
+    bytesPerRow
 
 
 
 
 
-
+  })
   {
     const valueSize = expectedValue.byteLength;
     assert(valueSize === 1 || valueSize === 2 || valueSize % 4 === 0);
@@ -401,8 +413,8 @@ export class GPUTest extends Fixture {
     // Copy into a buffer suitable for STORAGE usage.
     const storageBuffer = this.device.createBuffer({
       size: bufferSize,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
-
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+    });
     this.trackForCleanup(storageBuffer);
 
     // This buffer conveys the data we expect to see for a single value read. Since we read 32 bits at
@@ -414,8 +426,8 @@ export class GPUTest extends Fixture {
     const expectedDataBuffer = this.device.createBuffer({
       size: expectedDataSize,
       usage: GPUBufferUsage.STORAGE,
-      mappedAtCreation: true });
-
+      mappedAtCreation: true
+    });
     this.trackForCleanup(expectedDataBuffer);
     const expectedData = new Uint32Array(expectedDataBuffer.getMappedRange());
     if (valueSize === 1) {
@@ -437,8 +449,8 @@ export class GPUTest extends Fixture {
     // read from the corresponding row matches the expected data derived above, or 0 otherwise.
     const resultBuffer = this.device.createBuffer({
       size: numRows * 4,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC });
-
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
+    });
     this.trackForCleanup(resultBuffer);
 
     const readsPerRow = Math.ceil(minBytesPerRow / expectedDataSize);
@@ -468,18 +480,18 @@ export class GPUTest extends Fixture {
       layout: 'auto',
       compute: {
         module: this.device.createShaderModule({ code: reducer }),
-        entryPoint: 'reduce' } });
-
-
+        entryPoint: 'reduce'
+      }
+    });
 
     const bindGroup = this.device.createBindGroup({
       layout: pipeline.getBindGroupLayout(0),
       entries: [
       { binding: 0, resource: { buffer: expectedDataBuffer } },
       { binding: 1, resource: { buffer: storageBuffer } },
-      { binding: 2, resource: { buffer: resultBuffer } }] });
+      { binding: 2, resource: { buffer: resultBuffer } }]
 
-
+    });
 
     const commandEncoder = this.device.createCommandEncoder();
     commandEncoder.copyBufferToBuffer(buffer, 0, storageBuffer, 0, bufferSize);
@@ -497,7 +509,8 @@ export class GPUTest extends Fixture {
   // MAINTENANCE_TODO: add an expectContents for textures, which logs data: uris on failure
 
   /**
-   * Expect a whole GPUTexture to have the single provided color.
+   * Expect an entire GPUTexture to have a single color at the given mip level (defaults to 0).
+   * MAINTENANCE_TODO: Remove this and/or replace it with a helper in TextureTestMixin.
    */
   expectSingleColor(
   src,
@@ -507,15 +520,20 @@ export class GPUTest extends Fixture {
     exp,
     dimension = '2d',
     slice = 0,
-    layout })
+    layout
 
 
 
 
 
 
-
+  })
   {
+    assert(
+    slice === 0 || dimension === '2d',
+    'texture slices are only implemented for 2d textures');
+
+
     format = resolvePerAspectFormat(format, layout?.aspect);
     const { byteLength, minBytesPerRow, bytesPerRow, rowsPerImage, mipSize } = getTextureCopyLayout(
     format,
@@ -523,14 +541,23 @@ export class GPUTest extends Fixture {
     size,
     layout);
 
+    // MAINTENANCE_TODO: getTextureCopyLayout does not return the proper size for array textures,
+    // i.e. it will leave the z/depth value as is instead of making it 1 when dealing with 2d
+    // texture arrays. Since we are passing in the dimension, we should update it to return the
+    // corrected size.
+    const copySize = [
+    mipSize[0],
+    dimension !== '1d' ? mipSize[1] : 1,
+    dimension === '3d' ? mipSize[2] : 1];
+
 
     const rep = kTexelRepresentationInfo[format];
     const expectedTexelData = rep.pack(rep.encode(exp));
 
     const buffer = this.device.createBuffer({
       size: byteLength,
-      usage: GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST });
-
+      usage: GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
+    });
     this.trackForCleanup(buffer);
 
     const commandEncoder = this.device.createCommandEncoder();
@@ -539,22 +566,25 @@ export class GPUTest extends Fixture {
       texture: src,
       mipLevel: layout?.mipLevel,
       origin: { x: 0, y: 0, z: slice },
-      aspect: layout?.aspect },
-
+      aspect: layout?.aspect
+    },
     { buffer, bytesPerRow, rowsPerImage },
-    mipSize);
+    copySize);
 
     this.queue.submit([commandEncoder.finish()]);
 
     this.expectGPUBufferRepeatsSingleValue(buffer, {
       expectedValue: expectedTexelData,
-      numRows: rowsPerImage,
+      numRows: rowsPerImage * copySize[2],
       minBytesPerRow,
-      bytesPerRow });
-
+      bytesPerRow
+    });
   }
 
-  /** Return a GPUBuffer that data are going to be written into. */
+  /**
+   * Return a GPUBuffer that data are going to be written into.
+   * MAINTENANCE_TODO: Remove this once expectSinglePixelBetweenTwoValuesIn2DTexture is removed.
+   */
   readSinglePixelFrom2DTexture(
   src,
   format,
@@ -568,8 +598,8 @@ export class GPUTest extends Fixture {
 
     const buffer = this.device.createBuffer({
       size: byteLength,
-      usage: GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST });
-
+      usage: GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
+    });
     this.trackForCleanup(buffer);
 
     const commandEncoder = this.device.createCommandEncoder();
@@ -584,37 +614,10 @@ export class GPUTest extends Fixture {
   }
 
   /**
-   * Expect a single pixel of a 2D texture to have a particular byte representation.
-   *
-   * MAINTENANCE_TODO: Add check for values of depth/stencil, probably through sampling of shader
-   * MAINTENANCE_TODO: Can refactor this and expectSingleColor to use a similar base expect
-   */
-  expectSinglePixelIn2DTexture(
-  src,
-  format,
-  { x, y },
-  {
-    exp,
-    slice = 0,
-    layout,
-    generateWarningOnly = false })
-
-
-
-
-
-
-  {
-    const buffer = this.readSinglePixelFrom2DTexture(src, format, { x, y }, { slice, layout });
-    this.expectGPUBufferValuesEqual(buffer, exp, 0, {
-      mode: generateWarningOnly ? 'warn' : 'fail' });
-
-  }
-
-  /**
    * Take a single pixel of a 2D texture, interpret it using a TypedArray of the `expected` type,
    * and expect each value in that array to be between the corresponding "expected" values
    * (either `a[i] <= actual[i] <= b[i]` or `a[i] >= actual[i] => b[i]`).
+   * MAINTENANCE_TODO: Remove this once there is a way to deal with undefined lerp-ed values.
    */
   expectSinglePixelBetweenTwoValuesIn2DTexture(
   src,
@@ -625,7 +628,7 @@ export class GPUTest extends Fixture {
     slice = 0,
     layout,
     generateWarningOnly = false,
-    checkElementsBetweenFn = (act, [a, b]) => checkElementsBetween(act, [(i) => a[i], (i) => b[i]]) })
+    checkElementsBetweenFn = (act, [a, b]) => checkElementsBetween(act, [(i) => a[i], (i) => b[i]])
 
 
 
@@ -635,7 +638,7 @@ export class GPUTest extends Fixture {
 
 
 
-
+  })
   {
     assert(exp[0].constructor === exp[1].constructor);
     const constructor = exp[0].constructor;
@@ -646,42 +649,95 @@ export class GPUTest extends Fixture {
     this.expectGPUBufferValuesPassCheck(buffer, (a) => checkElementsBetweenFn(a, exp), {
       type: constructor,
       typedLength,
-      mode: generateWarningOnly ? 'warn' : 'fail' });
-
+      mode: generateWarningOnly ? 'warn' : 'fail'
+    });
   }
 
   /**
-   * Equivalent to {@link expectSinglePixelBetweenTwoValuesIn2DTexture} but uses a special check func
-   * to interpret incoming values as float16
+   * Emulate a texture to buffer copy by using a compute shader
+   * to load texture value of a single pixel and write to a storage buffer.
+   * For sample count == 1, the buffer contains only one value of the sample.
+   * For sample count > 1, the buffer contains (N = sampleCount) values sorted
+   * in the order of their sample index [0, sampleCount - 1]
+   *
+   * This can be useful when the texture to buffer copy is not available to the texture format
+   * e.g. (depth24plus), or when the texture is multisampled.
+   *
+   * MAINTENANCE_TODO: extend to read multiple pixels with given origin and size.
+   *
+   * @returns storage buffer containing the copied value from the texture.
    */
-  expectSinglePixelBetweenTwoValuesFloat16In2DTexture(
-  src,
-  format,
-  { x, y },
+  copySinglePixelTextureToBufferUsingComputePass(
+  type,
+  componentCount,
+  textureView,
+  sampleCount)
   {
-    exp,
-    slice = 0,
-    layout,
-    generateWarningOnly = false })
+    const textureSrcCode =
+    sampleCount === 1 ?
+    `@group(0) @binding(0) var src: texture_2d<${type}>;` :
+    `@group(0) @binding(0) var src: texture_multisampled_2d<${type}>;`;
+    const code = `
+      struct Buffer {
+        data: array<${type}>,
+      };
 
+      ${textureSrcCode}
+      @group(0) @binding(1) var<storage, read_write> dst : Buffer;
 
+      @compute @workgroup_size(1) fn main() {
+        var coord = vec2<i32>(0, 0);
+        for (var sampleIndex = 0; sampleIndex < ${sampleCount};
+          sampleIndex = sampleIndex + 1) {
+          let o = sampleIndex * ${componentCount};
+          let v = textureLoad(src, coord, sampleIndex);
+          for (var component = 0; component < ${componentCount}; component = component + 1) {
+            dst.data[o + component] = v[component];
+          }
+        }
+      }
+    `;
+    const computePipeline = this.device.createComputePipeline({
+      layout: 'auto',
+      compute: {
+        module: this.device.createShaderModule({
+          code
+        }),
+        entryPoint: 'main'
+      }
+    });
 
+    const storageBuffer = this.device.createBuffer({
+      size: sampleCount * type.size * componentCount,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
+    });
+    this.trackForCleanup(storageBuffer);
 
+    const uniformBindGroup = this.device.createBindGroup({
+      layout: computePipeline.getBindGroupLayout(0),
+      entries: [
+      {
+        binding: 0,
+        resource: textureView
+      },
+      {
+        binding: 1,
+        resource: {
+          buffer: storageBuffer
+        }
+      }]
 
+    });
 
-  {
-    this.expectSinglePixelBetweenTwoValuesIn2DTexture(
-    src,
-    format,
-    { x, y },
-    {
-      exp,
-      slice,
-      layout,
-      generateWarningOnly,
-      checkElementsBetweenFn: checkElementsFloat16Between });
+    const encoder = this.device.createCommandEncoder();
+    const pass = encoder.beginComputePass();
+    pass.setPipeline(computePipeline);
+    pass.setBindGroup(0, uniformBindGroup);
+    pass.dispatchWorkgroups(1);
+    pass.end();
+    this.device.queue.submit([encoder.finish()]);
 
-
+    return storageBuffer;
   }
 
   /**
@@ -786,68 +842,6 @@ export class GPUTest extends Fixture {
   }
 
   /**
-   * Creates a texture with the contents of a TexelView.
-   */
-  makeTextureWithContents(
-  texelView,
-  desc)
-  {
-    return this.trackForCleanup(makeTextureWithContents(this.device, texelView, desc));
-  }
-
-  /**
-   * Create a GPUTexture with multiple mip levels, each having the specified contents.
-   */
-  createTexture2DWithMipmaps(mipmapDataArray) {
-    const format = 'rgba8unorm';
-    const mipLevelCount = mipmapDataArray.length;
-    const textureSizeMipmap0 = 1 << mipLevelCount - 1;
-    const texture = this.device.createTexture({
-      mipLevelCount,
-      size: { width: textureSizeMipmap0, height: textureSizeMipmap0, depthOrArrayLayers: 1 },
-      format,
-      usage: GPUTextureUsage.COPY_DST | GPUTextureUsage.TEXTURE_BINDING });
-
-    this.trackForCleanup(texture);
-
-    const textureEncoder = this.device.createCommandEncoder();
-    for (let i = 0; i < mipLevelCount; i++) {
-      const { byteLength, bytesPerRow, rowsPerImage, mipSize } = getTextureCopyLayout(
-      format,
-      '2d',
-      [textureSizeMipmap0, textureSizeMipmap0, 1],
-      { mipLevel: i });
-
-
-      const data = new Uint8Array(byteLength);
-      const mipLevelData = mipmapDataArray[i];
-      assert(rowsPerImage === mipSize[0]); // format is rgba8unorm and block size should be 1
-      for (let r = 0; r < rowsPerImage; r++) {
-        const o = r * bytesPerRow;
-        for (let c = o, end = o + mipSize[1] * 4; c < end; c += 4) {
-          data[c] = mipLevelData[0];
-          data[c + 1] = mipLevelData[1];
-          data[c + 2] = mipLevelData[2];
-          data[c + 3] = mipLevelData[3];
-        }
-      }
-      const buffer = this.makeBufferWithContents(
-      data,
-      GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST);
-
-
-      textureEncoder.copyBufferToTexture(
-      { buffer, bytesPerRow, rowsPerImage },
-      { texture, mipLevel: i, origin: [0, 0, 0] },
-      mipSize);
-
-    }
-    this.device.queue.submit([textureEncoder.finish()]);
-
-    return texture;
-  }
-
-  /**
    * Returns a GPUCommandEncoder, GPUComputePassEncoder, GPURenderPassEncoder, or
    * GPURenderBundleEncoder, and a `finish` method returning a GPUCommandBuffer.
    * Allows testing methods which have the same signature across multiple encoder interfaces.
@@ -875,19 +869,19 @@ export class GPUTest extends Fixture {
   encoderType,
   {
     attachmentInfo,
-    occlusionQuerySet } =
+    occlusionQuerySet
 
 
 
-  {})
+  } = {})
   {
     const fullAttachmentInfo = {
       // Defaults if not overridden:
       colorFormats: ['rgba8unorm'],
       sampleCount: 1,
       // Passed values take precedent.
-      ...attachmentInfo };
-
+      ...attachmentInfo
+    };
 
     switch (encoderType) {
       case 'non-pass':{
@@ -923,8 +917,8 @@ export class GPUTest extends Fixture {
             size: [16, 16, 1],
             format,
             usage: GPUTextureUsage.RENDER_ATTACHMENT,
-            sampleCount: fullAttachmentInfo.sampleCount })).
-
+            sampleCount: fullAttachmentInfo.sampleCount
+          })).
           createView();
 
           let depthStencilAttachment = undefined;
@@ -932,8 +926,8 @@ export class GPUTest extends Fixture {
             depthStencilAttachment = {
               view: makeAttachmentView(fullAttachmentInfo.depthStencilFormat),
               depthReadOnly: fullAttachmentInfo.depthReadOnly,
-              stencilReadOnly: fullAttachmentInfo.stencilReadOnly };
-
+              stencilReadOnly: fullAttachmentInfo.stencilReadOnly
+            };
             if (
             kTextureFormatInfo[fullAttachmentInfo.depthStencilFormat].depth &&
             !fullAttachmentInfo.depthReadOnly)
@@ -958,13 +952,13 @@ export class GPUTest extends Fixture {
               view: makeAttachmentView(format),
               clearValue: [0, 0, 0, 0],
               loadOp: 'clear',
-              storeOp: 'store' } :
-
+              storeOp: 'store'
+            } :
             null),
 
             depthStencilAttachment,
-            occlusionQuerySet };
-
+            occlusionQuerySet
+          };
 
           const commandEncoder = this.device.createCommandEncoder();
           const encoder = commandEncoder.beginRenderPass(passDesc);
@@ -975,5 +969,177 @@ export class GPUTest extends Fixture {
         }}
 
     unreachable();
-  }}
+  }
+}
+
+/**
+ * Texture expectation mixin can be applied on top of GPUTest to add texture
+ * related expectation helpers.
+ */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+export function TextureTestMixin(
+Base)
+{
+  class TextureExpectations extends
+  Base
+  {
+    createTextureFromTexelView(
+    texelView,
+    desc)
+    {
+      return this.trackForCleanup(createTextureFromTexelView(this.device, texelView, desc));
+    }
+
+    createTextureFromTexelViewsMultipleMipmaps(
+    texelViews,
+    desc)
+    {
+      return this.trackForCleanup(createTextureFromTexelViews(this.device, texelViews, desc));
+    }
+
+    expectTexelViewComparisonIsOkInTexture(
+    src,
+    exp,
+    size,
+    comparisonOptions = {
+      maxIntDiff: 0,
+      maxDiffULPsForNormFormat: 1,
+      maxDiffULPsForFloatFormat: 1
+    })
+    {
+      this.eventualExpectOK(
+      textureContentIsOKByT2B(this, src, size, { expTexelView: exp }, comparisonOptions));
+
+    }
+
+    expectSinglePixelComparisonsAreOkInTexture(
+    src,
+    exp,
+    comparisonOptions = {
+      maxIntDiff: 0,
+      maxDiffULPsForNormFormat: 1,
+      maxDiffULPsForFloatFormat: 1
+    })
+    {
+      assert(exp.length > 0, 'must specify at least one pixel comparison');
+      assert(
+      kEncodableTextureFormats.includes(src.texture.format),
+      () => `${src.texture.format} is not an encodable format`);
+
+      const lowerCorner = [src.texture.width, src.texture.height, src.texture.depthOrArrayLayers];
+      const upperCorner = [0, 0, 0];
+      const expMap = new Map();
+      const coords = [];
+      for (const e of exp) {
+        const coord = reifyOrigin3D(e.coord);
+        const coordKey = JSON.stringify(coord);
+        coords.push(coord);
+
+        // Compute the minimum sub-rect that encompasses all the pixel comparisons. The
+        // `lowerCorner` will become the origin, and the `upperCorner` will be used to compute the
+        // size.
+        lowerCorner[0] = Math.min(lowerCorner[0], coord.x);
+        lowerCorner[1] = Math.min(lowerCorner[1], coord.y);
+        lowerCorner[2] = Math.min(lowerCorner[2], coord.z);
+        upperCorner[0] = Math.max(upperCorner[0], coord.x);
+        upperCorner[1] = Math.max(upperCorner[1], coord.y);
+        upperCorner[2] = Math.max(upperCorner[2], coord.z);
+
+        // Build a sparse map of the coordinates to the expected colors for the texel view.
+        assert(
+        !expMap.has(coordKey),
+        () => `duplicate pixel expectation at coordinate (${coord.x},${coord.y},${coord.z})`);
+
+        expMap.set(coordKey, e.exp);
+      }
+      const size = [
+      upperCorner[0] - lowerCorner[0] + 1,
+      upperCorner[1] - lowerCorner[1] + 1,
+      upperCorner[2] - lowerCorner[2] + 1];
+
+      let expTexelView;
+      if (Symbol.iterator in exp[0].exp) {
+        expTexelView = TexelView.fromTexelsAsBytes(
+        src.texture.format,
+        (coord) => {
+          const res = expMap.get(JSON.stringify(coord));
+          assert(
+          res !== undefined,
+          () => `invalid coordinate (${coord.x},${coord.y},${coord.z}) in sparse texel view`);
+
+          return res;
+        });
+
+      } else {
+        expTexelView = TexelView.fromTexelsAsColors(
+        src.texture.format,
+        (coord) => {
+          const res = expMap.get(JSON.stringify(coord));
+          assert(
+          res !== undefined,
+          () => `invalid coordinate (${coord.x},${coord.y},${coord.z}) in sparse texel view`);
+
+          return res;
+        });
+
+      }
+      const coordsF = function* () {
+        for (const coord of coords) {
+          yield coord;
+        }
+      }();
+
+      this.eventualExpectOK(
+      textureContentIsOKByT2B(
+      this,
+      { ...src, origin: reifyOrigin3D(lowerCorner) },
+      size,
+      { expTexelView },
+      comparisonOptions,
+      coordsF));
+
+
+    }
+  }
+  return TextureExpectations;
+}
 //# sourceMappingURL=gpu_test.js.map

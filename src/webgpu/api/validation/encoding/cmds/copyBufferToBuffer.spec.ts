@@ -64,7 +64,7 @@ g.test('buffer_state')
       .combine('srcBufferState', kResourceStates)
       .combine('dstBufferState', kResourceStates)
   )
-  .fn(async t => {
+  .fn(t => {
     const { srcBufferState, dstBufferState } = t.params;
     const srcBuffer = t.createBufferWithState(srcBufferState, {
       size: 16,
@@ -105,19 +105,18 @@ g.test('buffer,device_mismatch')
   .beforeAllSubcases(t => {
     t.selectMismatchedDeviceOrSkipTestCase(undefined);
   })
-  .fn(async t => {
+  .fn(t => {
     const { srcMismatched, dstMismatched } = t.params;
-    const mismatched = srcMismatched || dstMismatched;
 
-    const device = mismatched ? t.mismatchedDevice : t.device;
-
-    const srcBuffer = device.createBuffer({
+    const srcBufferDevice = srcMismatched ? t.mismatchedDevice : t.device;
+    const srcBuffer = srcBufferDevice.createBuffer({
       size: 16,
       usage: GPUBufferUsage.COPY_SRC,
     });
     t.trackForCleanup(srcBuffer);
 
-    const dstBuffer = device.createBuffer({
+    const dstBufferDevice = dstMismatched ? t.mismatchedDevice : t.device;
+    const dstBuffer = dstBufferDevice.createBuffer({
       size: 16,
       usage: GPUBufferUsage.COPY_DST,
     });
@@ -129,7 +128,7 @@ g.test('buffer,device_mismatch')
       dstBuffer,
       dstOffset: 0,
       copySize: 8,
-      expectation: mismatched ? 'FinishError' : 'Success',
+      expectation: srcMismatched || dstMismatched ? 'FinishError' : 'Success',
     });
   });
 
@@ -139,7 +138,7 @@ g.test('buffer_usage')
       .combine('srcUsage', kBufferUsages)
       .combine('dstUsage', kBufferUsages)
   )
-  .fn(async t => {
+  .fn(t => {
     const { srcUsage, dstUsage } = t.params;
 
     const srcBuffer = t.device.createBuffer({
@@ -172,7 +171,7 @@ g.test('copy_size_alignment')
     { copySize: 5, _isSuccess: false },
     { copySize: 8, _isSuccess: true },
   ] as const)
-  .fn(async t => {
+  .fn(t => {
     const { copySize, _isSuccess: isSuccess } = t.params;
 
     const srcBuffer = t.device.createBuffer({
@@ -207,7 +206,7 @@ g.test('copy_offset_alignment')
     { srcOffset: 0, dstOffset: 8, _isSuccess: true },
     { srcOffset: 4, dstOffset: 4, _isSuccess: true },
   ] as const)
-  .fn(async t => {
+  .fn(t => {
     const { srcOffset, dstOffset, _isSuccess: isSuccess } = t.params;
 
     const srcBuffer = t.device.createBuffer({
@@ -244,7 +243,7 @@ g.test('copy_overflow')
       copySize: kMaxSafeMultipleOf8,
     },
   ] as const)
-  .fn(async t => {
+  .fn(t => {
     const { srcOffset, dstOffset, copySize } = t.params;
 
     const srcBuffer = t.device.createBuffer({
@@ -279,7 +278,7 @@ g.test('copy_out_of_bounds')
     { srcOffset: 0, dstOffset: 20, copySize: 16 },
     { srcOffset: 0, dstOffset: 20, copySize: 12, _isSuccess: true },
   ] as const)
-  .fn(async t => {
+  .fn(t => {
     const { srcOffset, dstOffset, copySize, _isSuccess = false } = t.params;
 
     const srcBuffer = t.device.createBuffer({
@@ -308,7 +307,7 @@ g.test('copy_within_same_buffer')
     { srcOffset: 0, dstOffset: 4, copySize: 8 },
     { srcOffset: 4, dstOffset: 0, copySize: 8 },
   ] as const)
-  .fn(async t => {
+  .fn(t => {
     const { srcOffset, dstOffset, copySize } = t.params;
 
     const buffer = t.device.createBuffer({

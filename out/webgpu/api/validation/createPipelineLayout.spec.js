@@ -31,7 +31,7 @@ u //
 .combine('visibility', [0, 2, 4, 6]).
 combine('type', kBufferBindingTypes)).
 
-fn(async (t) => {
+fn((t) => {
   const { type, visibility } = t.params;
   const { maxDynamic } = bufferBindingTypeInfo({ type }).perPipelineLimitClass;
 
@@ -40,24 +40,24 @@ fn(async (t) => {
     maxDynamicBufferBindings.push({
       binding,
       visibility,
-      buffer: { type, hasDynamicOffset: true } });
-
+      buffer: { type, hasDynamicOffset: true }
+    });
   }
 
   const maxDynamicBufferBindGroupLayout = t.device.createBindGroupLayout({
-    entries: maxDynamicBufferBindings });
-
+    entries: maxDynamicBufferBindings
+  });
 
   const goodDescriptor = {
-    entries: [{ binding: 0, visibility, buffer: { type, hasDynamicOffset: false } }] };
-
+    entries: [{ binding: 0, visibility, buffer: { type, hasDynamicOffset: false } }]
+  };
 
   const goodPipelineLayoutDescriptor = {
     bindGroupLayouts: [
     maxDynamicBufferBindGroupLayout,
-    t.device.createBindGroupLayout(goodDescriptor)] };
+    t.device.createBindGroupLayout(goodDescriptor)]
 
-
+  };
 
   // Control case
   t.device.createPipelineLayout(goodPipelineLayoutDescriptor);
@@ -69,9 +69,9 @@ fn(async (t) => {
   const badPipelineLayoutDescriptor = {
     bindGroupLayouts: [
     maxDynamicBufferBindGroupLayout,
-    t.device.createBindGroupLayout(badDescriptor)] };
+    t.device.createBindGroupLayout(badDescriptor)]
 
-
+  };
 
   t.expectValidationError(() => {
     t.device.createPipelineLayout(badPipelineLayoutDescriptor);
@@ -87,10 +87,10 @@ desc(
       fails.
   `).
 
-fn(async (t) => {
+fn((t) => {
   const bindGroupLayoutDescriptor = {
-    entries: [] };
-
+    entries: []
+  };
 
   // 4 is the maximum number of bind group layouts.
   const maxBindGroupLayouts = [1, 2, 3, 4].map(() =>
@@ -98,8 +98,8 @@ fn(async (t) => {
 
 
   const goodPipelineLayoutDescriptor = {
-    bindGroupLayouts: maxBindGroupLayouts };
-
+    bindGroupLayouts: maxBindGroupLayouts
+  };
 
   // Control case
   t.device.createPipelineLayout(goodPipelineLayoutDescriptor);
@@ -108,9 +108,9 @@ fn(async (t) => {
   const badPipelineLayoutDescriptor = {
     bindGroupLayouts: [
     ...maxBindGroupLayouts,
-    t.device.createBindGroupLayout(bindGroupLayoutDescriptor)] };
+    t.device.createBindGroupLayout(bindGroupLayoutDescriptor)]
 
-
+  };
 
   t.expectValidationError(() => {
     t.device.createPipelineLayout(badPipelineLayoutDescriptor);
@@ -134,14 +134,14 @@ paramsSubcasesOnly([
 beforeAllSubcases((t) => {
   t.selectMismatchedDeviceOrSkipTestCase(undefined);
 }).
-fn(async (t) => {
+fn((t) => {
   const { layout0Mismatched, layout1Mismatched } = t.params;
 
   const mismatched = layout0Mismatched || layout1Mismatched;
 
   const bglDescriptor = {
-    entries: [] };
-
+    entries: []
+  };
 
   const layout0 = layout0Mismatched ?
   t.mismatchedDevice.createBindGroupLayout(bglDescriptor) :

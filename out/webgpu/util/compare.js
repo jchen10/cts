@@ -1,7 +1,13 @@
 /**
 * AUTO-GENERATED - DO NOT EDIT. Source: https://github.com/gpuweb/cts
-**/import { Colors } from '../../common/util/colors.js';import { toComparator } from '../shader/execution/expression/expression.js';
-import { isFloatValue, Scalar, Vector } from './conversion.js';
+**/import { getIsBuildingDataCache } from '../../common/framework/data_cache.js';import { Colors } from '../../common/util/colors.js';import {
+deserializeExpectation,
+
+serializeExpectation } from
+'../shader/execution/expression/case_cache.js';
+import { toComparator } from '../shader/execution/expression/expression.js';
+
+import { isFloatValue, Matrix, Scalar, Vector } from './conversion.js';
 import { F32Interval } from './f32_interval.js';
 
 /** Comparison describes the result of a Comparator function. */
@@ -22,6 +28,9 @@ import { F32Interval } from './f32_interval.js';
  * @param expected the expected Value
  * @returns the comparison results
  */
+// NOTE: This function does not use objectEquals, since that does not handle FP
+// specific corners cases correctly, i.e. that f64/f32/f16 are all considered
+// the same type for this comparison.
 function compareValue(got, expected) {
   {
     // Check types
@@ -32,8 +41,8 @@ function compareValue(got, expected) {
       return {
         matched: false,
         got: `${Colors.red(gTy.toString())}(${got})`,
-        expected: `${Colors.red(eTy.toString())}(${expected})` };
-
+        expected: `${Colors.red(eTy.toString())}(${expected})`
+      };
     }
   }
 
@@ -46,40 +55,52 @@ function compareValue(got, expected) {
     return {
       matched,
       got: g.toString(),
-      expected: matched ? Colors.green(e.toString()) : Colors.red(e.toString()) };
-
+      expected: matched ? Colors.green(e.toString()) : Colors.red(e.toString())
+    };
   }
 
   if (got instanceof Vector) {
+    const e = expected;
     const gLen = got.elements.length;
-    const eLen = expected.elements.length;
+    const eLen = e.elements.length;
     let matched = gLen === eLen;
-    const gElements = new Array(gLen);
-    const eElements = new Array(eLen);
-    for (let i = 0; i < Math.max(gLen, eLen); i++) {
-      if (i < gLen && i < eLen) {
-        const g = got.elements[i];
-        const e = expected.elements[i];
-        const cmp = compare(g, e);
-        matched = matched && cmp.matched;
-        gElements[i] = cmp.got;
-        eElements[i] = cmp.expected;
-        continue;
-      }
-      matched = false;
-      if (i < gLen) {
-        gElements[i] = got.elements[i].toString();
-      }
-      if (i < eLen) {
-        eElements[i] = expected.elements[i].toString();
-      }
+    if (matched) {
+      // Iterating and calling compare instead of just using objectEquals to use the FP specific logic from above
+      matched = got.elements.every((_, i) => {
+        return compare(got.elements[i], e.elements[i]).matched;
+      });
     }
+
     return {
       matched,
-      got: `${got.type}(${gElements.join(', ')})`,
-      expected: `${expected.type}(${eElements.join(', ')})` };
-
+      got: `${got.toString()}`,
+      expected: matched ? Colors.green(e.toString()) : Colors.red(e.toString())
+    };
   }
+
+  if (got instanceof Matrix) {
+    const e = expected;
+    const gCols = got.type.cols;
+    const eCols = e.type.cols;
+    const gRows = got.type.rows;
+    const eRows = e.type.rows;
+    let matched = gCols === eCols && gRows === eRows;
+    if (matched) {
+      // Iterating and calling compare instead of just using objectEquals to use the FP specific logic from above
+      matched = got.elements.every((c, i) => {
+        return c.every((_, j) => {
+          return compare(got.elements[i][j], e.elements[i][j]).matched;
+        });
+      });
+    }
+
+    return {
+      matched,
+      got: `${got.toString()}`,
+      expected: matched ? Colors.green(e.toString()) : Colors.red(e.toString())
+    };
+  }
+
   throw new Error(`unhandled type '${typeof got}`);
 }
 
@@ -97,8 +118,8 @@ function compareInterval(got, expected) {
       return {
         matched: false,
         got: `${Colors.red(gTy.toString())}(${got})`,
-        expected: `floating point value` };
-
+        expected: `floating point value`
+      };
     }
   }
 
@@ -108,8 +129,8 @@ function compareInterval(got, expected) {
     return {
       matched,
       got: g.toString(),
-      expected: matched ? Colors.green(expected.toString()) : Colors.red(expected.toString()) };
-
+      expected: matched ? Colors.green(expected.toString()) : Colors.red(expected.toString())
+    };
   }
 
   // Vector results are currently not handled
@@ -128,8 +149,8 @@ function compareVector(got, expected) {
     return {
       matched: false,
       got: `${Colors.red((typeof got).toString())}(${got})`,
-      expected: `Vector` };
-
+      expected: `Vector`
+    };
   }
 
   // Check element type
@@ -139,8 +160,8 @@ function compareVector(got, expected) {
       return {
         matched: false,
         got: `${Colors.red(gTy.toString())}(${got})`,
-        expected: `floating point elements` };
-
+        expected: `floating point elements`
+      };
     }
   }
 
@@ -148,8 +169,8 @@ function compareVector(got, expected) {
     return {
       matched: false,
       got: `Vector of ${got.elements.length} elements`,
-      expected: `${expected.length} elements` };
-
+      expected: `${expected.length} elements`
+    };
   }
 
   const results = got.elements.map((_, idx) => {
@@ -165,15 +186,15 @@ function compareVector(got, expected) {
     return {
       matched: false,
       got: `[${got.elements}]`,
-      expected: `[${expected_string}]` };
-
+      expected: `[${expected_string}]`
+    };
   }
 
   return {
     matched: true,
     got: `[${got.elements}]`,
-    expected: `[${Colors.green(expected.toString())}]` };
-
+    expected: `[${Colors.green(expected.toString())}]`
+  };
 }
 
 /**
@@ -195,8 +216,10 @@ export function compare(got, expected) {
 }
 
 /** @returns a Comparator that checks whether a test value matches any of the provided options */
-export function anyOf(...expectations) {
-  return (got) => {
+export function anyOf(
+...expectations)
+{
+  const comparator = (got) => {
     const failed = new Set();
     for (const e of expectations) {
       const cmp = toComparator(e)(got);
@@ -207,5 +230,69 @@ export function anyOf(...expectations) {
     }
     return { matched: false, got: got.toString(), expected: [...failed].join(' or ') };
   };
+
+  if (getIsBuildingDataCache()) {
+    // If there's an active DataCache, and it supports storing, then append the
+    // comparator kind and serialized expectations to the comparator, so it can
+    // be serialized.
+    comparator.kind = 'anyOf';
+    comparator.data = expectations.map((e) => serializeExpectation(e));
+  }
+  return comparator;
+}
+
+/** @returns a Comparator that skips the test if the expectation is undefined */
+export function skipUndefined(
+expectation)
+{
+  const comparator = (got) => {
+    if (expectation !== undefined) {
+      return toComparator(expectation)(got);
+    }
+    return { matched: true, got: got.toString(), expected: `Treating 'undefined' as Any` };
+  };
+
+  if (getIsBuildingDataCache()) {
+    // If there's an active DataCache, and it supports storing, then append the
+    // comparator kind and serialized expectations to the comparator, so it can
+    // be serialized.
+    comparator.kind = 'skipUndefined';
+    if (expectation !== undefined) {
+      comparator.data = serializeExpectation(expectation);
+    }
+  }
+  return comparator;
+}
+
+/** SerializedComparatorAnyOf is the serialized type of an `anyOf` comparator. */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/**
+ * Deserializes a comparator from a SerializedComparator.
+ * @param data the SerializedComparator
+ * @returns the deserialized Comparator.
+ */
+export function deserializeComparator(data) {
+  switch (data.kind) {
+    case 'anyOf':{
+        return anyOf(...data.data.map((e) => deserializeExpectation(e)));
+      }
+    case 'skipUndefined':{
+        return skipUndefined(data.data !== undefined ? deserializeExpectation(data.data) : undefined);
+      }}
+
+  throw `unhandled comparator kind`;
 }
 //# sourceMappingURL=compare.js.map

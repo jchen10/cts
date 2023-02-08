@@ -14,7 +14,7 @@ Tests a render pass with a resolveTarget resolves correctly for many combination
   - TODO?: resolveTarget {2d array layer, TODO: 3d slice} {0, >0} with {2d, TODO: 3d} resolveTarget
     (different z from colorAttachment)
 `;import { makeTestGroup } from '../../../../common/framework/test_group.js';
-import { GPUTest } from '../../../gpu_test.js';
+import { GPUTest, TextureTestMixin } from '../../../gpu_test.js';
 
 const kSlotsToResolve = [
 [0, 2],
@@ -25,7 +25,7 @@ const kSlotsToResolve = [
 const kSize = 4;
 const kFormat = 'rgba8unorm';
 
-export const g = makeTestGroup(GPUTest);
+export const g = makeTestGroup(TextureTestMixin(GPUTest));
 
 g.test('render_pass_resolve').
 params((u) =>
@@ -61,10 +61,10 @@ fn((t) => {
                   vec2<f32>(-1.0,  1.0),
                   vec2<f32>( 1.0,  1.0));
               return vec4<f32>(pos[VertexIndex], 0.0, 1.0);
-            }` }),
-
-      entryPoint: 'main' },
-
+            }`
+      }),
+      entryPoint: 'main'
+    },
     fragment: {
       module: t.device.createShaderModule({
         code: `
@@ -82,14 +82,14 @@ fn((t) => {
                 vec4<f32>(1.0, 1.0, 1.0, 1.0),
                 vec4<f32>(1.0, 1.0, 1.0, 1.0)
               );
-            }` }),
-
+            }`
+      }),
       entryPoint: 'main',
-      targets },
-
+      targets
+    },
     primitive: { topology: 'triangle-list' },
-    multisample: { count: 4 } });
-
+    multisample: { count: 4 }
+  });
 
   const resolveTargets = [];
   const renderPassColorAttachments = [];
@@ -105,8 +105,8 @@ fn((t) => {
       sampleCount: 4,
       mipLevelCount: 1,
       usage:
-      GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC | GPUTextureUsage.RENDER_ATTACHMENT });
-
+      GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC | GPUTextureUsage.RENDER_ATTACHMENT
+    });
 
     if (t.params.slotsToResolve.includes(i)) {
       const colorAttachment = t.device.createTexture({
@@ -115,20 +115,20 @@ fn((t) => {
         sampleCount: 4,
         mipLevelCount: 1,
         usage:
-        GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC | GPUTextureUsage.RENDER_ATTACHMENT });
-
+        GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC | GPUTextureUsage.RENDER_ATTACHMENT
+      });
 
       const resolveTarget = t.device.createTexture({
         format: kFormat,
         size: {
           width: kResolveTargetSize,
           height: kResolveTargetSize,
-          depthOrArrayLayers: t.params.resolveTargetBaseArrayLayer + 1 },
-
+          depthOrArrayLayers: t.params.resolveTargetBaseArrayLayer + 1
+        },
         sampleCount: 1,
         mipLevelCount: t.params.resolveTargetBaseMipLevel + 1,
-        usage: GPUTextureUsage.COPY_SRC | GPUTextureUsage.RENDER_ATTACHMENT });
-
+        usage: GPUTextureUsage.COPY_SRC | GPUTextureUsage.RENDER_ATTACHMENT
+      });
 
       // Clear to black for the load operation. After the draw, the top left half of the attachment
       // will be white and the bottom right half will be black.
@@ -139,9 +139,9 @@ fn((t) => {
         storeOp: t.params.storeOperation,
         resolveTarget: resolveTarget.createView({
           baseMipLevel: t.params.resolveTargetBaseMipLevel,
-          baseArrayLayer: t.params.resolveTargetBaseArrayLayer }) });
-
-
+          baseArrayLayer: t.params.resolveTargetBaseArrayLayer
+        })
+      });
 
       resolveTargets.push(resolveTarget);
     } else {
@@ -149,56 +149,34 @@ fn((t) => {
         view: colorAttachment.createView(),
         clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 0.0 },
         loadOp: 'clear',
-        storeOp: t.params.storeOperation });
-
+        storeOp: t.params.storeOperation
+      });
     }
   }
 
   const encoder = t.device.createCommandEncoder();
 
   const pass = encoder.beginRenderPass({
-    colorAttachments: renderPassColorAttachments });
-
+    colorAttachments: renderPassColorAttachments
+  });
   pass.setPipeline(pipeline);
   pass.draw(3);
   pass.end();
   t.device.queue.submit([encoder.finish()]);
 
-  // Verify the resolve targets contain the correct values.
+  // Verify the resolve targets contain the correct values. Note that we use z to specify the
+  // array layer from which to pull the pixels for testing.
+  const z = t.params.resolveTargetBaseArrayLayer;
   for (const resolveTarget of resolveTargets) {
-    // Test top left pixel, which should be {255, 255, 255, 255}.
-    t.expectSinglePixelIn2DTexture(
-    resolveTarget,
-    kFormat,
-    { x: 0, y: 0 },
-    {
-      exp: new Uint8Array([0xff, 0xff, 0xff, 0xff]),
-      slice: t.params.resolveTargetBaseArrayLayer,
-      layout: { mipLevel: t.params.resolveTargetBaseMipLevel } });
-
-
-
-    // Test bottom right pixel, which should be {0, 0, 0, 0}.
-    t.expectSinglePixelIn2DTexture(
-    resolveTarget,
-    kFormat,
-    { x: kSize - 1, y: kSize - 1 },
-    {
-      exp: new Uint8Array([0x00, 0x00, 0x00, 0x00]),
-      slice: t.params.resolveTargetBaseArrayLayer,
-      layout: { mipLevel: t.params.resolveTargetBaseMipLevel } });
-
-
-
-    // Test top right pixel, which should be {127, 127, 127, 127} due to the multisampled resolve.
-    t.expectSinglePixelBetweenTwoValuesIn2DTexture(
-    resolveTarget,
-    kFormat,
-    { x: kSize - 1, y: 0 },
-    {
-      exp: [new Uint8Array([0x7f, 0x7f, 0x7f, 0x7f]), new Uint8Array([0x80, 0x80, 0x80, 0x80])],
-      slice: t.params.resolveTargetBaseArrayLayer,
-      layout: { mipLevel: t.params.resolveTargetBaseMipLevel } });
+    t.expectSinglePixelComparisonsAreOkInTexture(
+    { texture: resolveTarget, mipLevel: t.params.resolveTargetBaseMipLevel },
+    [
+    // Top left pixel should be {1.0, 1.0, 1.0, 1.0}.
+    { coord: { x: 0, y: 0, z }, exp: { R: 1.0, G: 1.0, B: 1.0, A: 1.0 } },
+    // Bottom right pixel should be {0, 0, 0, 0}.
+    { coord: { x: kSize - 1, y: kSize - 1, z }, exp: { R: 0, G: 0, B: 0, A: 0 } },
+    // Top right pixel should be {0.5, 0.5, 0.5, 0.5} due to the multisampled resolve.
+    { coord: { x: kSize - 1, y: 0, z }, exp: { R: 0.5, G: 0.5, B: 0.5, A: 0.5 } }]);
 
 
   }

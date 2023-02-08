@@ -19,7 +19,7 @@ TODO: needs review and rename
     { storeOp: 'store', _expected: 1 }, //
     { storeOp: 'discard', _expected: 0 },
   ])
-  .fn(async t => {
+  .fn(t => {
     const renderTexture = t.device.createTexture({
       size: { width: 1, height: 1, depthOrArrayLayers: 1 },
       format: 'r8unorm',
@@ -43,10 +43,8 @@ TODO: needs review and rename
             }
             `,
         }),
-
         entryPoint: 'main',
       },
-
       fragment: {
         module: t.device.createShaderModule({
           code: `
@@ -55,11 +53,9 @@ TODO: needs review and rename
             }
             `,
         }),
-
         entryPoint: 'main',
         targets: [{ format: 'r8unorm' }],
       },
-
       primitive: { topology: 'triangle-list' },
     });
 
@@ -75,7 +71,6 @@ TODO: needs review and rename
         },
       ],
     });
-
     pass.setPipeline(renderPipeline);
     pass.draw(3);
     pass.end();

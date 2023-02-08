@@ -14,7 +14,7 @@ desc(
 encoded by chaining together long sequences of compute passes, with expected
 results verified at the end of the test.`).
 
-fn(async (t) => {
+fn((t) => {
   const kNumElements = 64;
   const data = new Uint32Array([...iterRange(kNumElements, (x) => x)]);
   const buffer = t.makeBufferWithContents(data, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC);
@@ -29,22 +29,22 @@ fn(async (t) => {
                 @builtin(global_invocation_id) id: vec3<u32>) {
               buffer.data[id.x] = buffer.data[id.x] + 1u;
             }
-          ` }),
-
-      entryPoint: 'main' } });
-
-
+          `
+      }),
+      entryPoint: 'main'
+    }
+  });
   const bindGroup = t.device.createBindGroup({
     layout: pipeline.getBindGroupLayout(0),
-    entries: [{ binding: 0, resource: { buffer } }] });
-
+    entries: [{ binding: 0, resource: { buffer } }]
+  });
   const encoder = t.device.createCommandEncoder();
   const kNumIterations = 500_000;
   for (let i = 0; i < kNumIterations; ++i) {
     const pass = encoder.beginComputePass();
     pass.setPipeline(pipeline);
     pass.setBindGroup(0, bindGroup);
-    pass.dispatch(kNumElements);
+    pass.dispatchWorkgroups(kNumElements);
     pass.end();
   }
   t.device.queue.submit([encoder.finish()]);
@@ -59,7 +59,7 @@ desc(
 `Tests submission of a huge number of command buffers to a GPUQueue by a single
 submit() call.`).
 
-fn(async (t) => {
+fn((t) => {
   const kNumElements = 64;
   const data = new Uint32Array([...iterRange(kNumElements, (x) => x)]);
   const buffer = t.makeBufferWithContents(data, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC);
@@ -74,15 +74,15 @@ fn(async (t) => {
                 @builtin(global_invocation_id) id: vec3<u32>) {
               buffer.data[id.x] = buffer.data[id.x] + 1u;
             }
-          ` }),
-
-      entryPoint: 'main' } });
-
-
+          `
+      }),
+      entryPoint: 'main'
+    }
+  });
   const bindGroup = t.device.createBindGroup({
     layout: pipeline.getBindGroupLayout(0),
-    entries: [{ binding: 0, resource: { buffer } }] });
-
+    entries: [{ binding: 0, resource: { buffer } }]
+  });
   const kNumIterations = 500_000;
   const buffers = [];
   for (let i = 0; i < kNumIterations; ++i) {
@@ -90,7 +90,7 @@ fn(async (t) => {
     const pass = encoder.beginComputePass();
     pass.setPipeline(pipeline);
     pass.setBindGroup(0, bindGroup);
-    pass.dispatch(kNumElements);
+    pass.dispatchWorkgroups(kNumElements);
     pass.end();
     buffers.push(encoder.finish());
   }

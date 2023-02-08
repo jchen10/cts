@@ -23,6 +23,25 @@ fn((t) => {
   texture.destroy();
 });
 
+g.test('invalid_texture').
+desc('Test that invalid textures may be destroyed without generating validation errors.').
+fn(async (t) => {
+  t.device.pushErrorScope('validation');
+
+  const invalidTexture = t.device.createTexture({
+    size: [t.device.limits.maxTextureDimension2D + 1, 1, 1],
+    format: 'rgba8unorm',
+    usage: GPUTextureUsage.TEXTURE_BINDING
+  });
+
+  // Expect error because it's invalid.
+  const error = await t.device.popErrorScope();
+  t.expect(!!error);
+
+  // This line should not generate an error
+  invalidTexture.destroy();
+});
+
 g.test('submit_a_destroyed_texture_as_attachment').
 desc(
 `
@@ -44,7 +63,7 @@ combine('depthStencilTextureState', [
 'destroyedAfterEncode'])).
 
 
-fn(async (t) => {
+fn((t) => {
   const { colorTextureState, depthStencilTextureAspect, depthStencilTextureState } = t.params;
 
   const isSubmitSuccess = colorTextureState === 'valid' && depthStencilTextureState === 'valid';
@@ -60,14 +79,14 @@ fn(async (t) => {
   const colorTextureDesc = {
     size: { width: 16, height: 16, depthOrArrayLayers: 1 },
     format: colorTextureFormat,
-    usage: GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT };
-
+    usage: GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT
+  };
 
   const depthStencilTextureDesc = {
     size: { width: 16, height: 16, depthOrArrayLayers: 1 },
     format: depthStencilTextureFormat,
-    usage: GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT };
-
+    usage: GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT
+  };
 
   const colorTexture = t.device.createTexture(colorTextureDesc);
   const depthStencilTexture = t.device.createTexture(depthStencilTextureDesc);
@@ -81,8 +100,8 @@ fn(async (t) => {
 
   const commandEncoder = t.device.createCommandEncoder();
   const depthStencilAttachment = {
-    view: depthStencilTexture.createView({ aspect: depthStencilTextureAspect }) };
-
+    view: depthStencilTexture.createView({ aspect: depthStencilTextureAspect })
+  };
   if (kTextureFormatInfo[depthStencilTextureFormat].depth) {
     depthStencilAttachment.depthClearValue = 0;
     depthStencilAttachment.depthLoadOp = 'clear';
@@ -99,11 +118,11 @@ fn(async (t) => {
       view: colorTexture.createView(),
       clearValue: [0, 0, 0, 0],
       loadOp: 'clear',
-      storeOp: 'store' }],
+      storeOp: 'store'
+    }],
 
-
-    depthStencilAttachment });
-
+    depthStencilAttachment
+  });
   renderPass.end();
 
   const cmd = commandEncoder.finish();

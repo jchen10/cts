@@ -22,13 +22,12 @@ g.test('buffer_state')
   `
   )
   .params(u => u.combine('bufferState', kResourceStates))
-  .fn(async t => {
+  .fn(t => {
     const { bufferState } = t.params;
     const buffer = t.createBufferWithState(bufferState, {
       size: 16,
       usage: GPUBufferUsage.COPY_DST,
     });
-
     const data = new Uint8Array(16);
     const _valid = bufferState === 'valid';
 
@@ -52,7 +51,7 @@ g.test('ranges')
     - Has a byte size which is a multiple of 4.
   `
   )
-  .fn(async t => {
+  .fn(t => {
     const queue = t.device.queue;
 
     function runTest(arrayType, testBuffer) {
@@ -62,7 +61,6 @@ g.test('ranges')
         size: bufferSize,
         usage: GPUBufferUsage.COPY_DST,
       });
-
       const arraySm = testBuffer ? new arrayType(8).buffer : new arrayType(8);
       const arrayMd = testBuffer ? new arrayType(16).buffer : new arrayType(16);
       const arrayLg = testBuffer ? new arrayType(32).buffer : new arrayType(32);
@@ -157,7 +155,7 @@ g.test('usages')
     { usage: GPUConst.BufferUsage.STORAGE | GPUConst.BufferUsage.COPY_SRC, _valid: false }, // with other usage
     { usage: GPUConst.BufferUsage.STORAGE | GPUConst.BufferUsage.COPY_DST, _valid: true }, // with COPY_DST usage
   ])
-  .fn(async t => {
+  .fn(t => {
     const { usage, _valid } = t.params;
     const buffer = t.device.createBuffer({ size: 16, usage });
     const data = new Uint8Array(16);
@@ -173,15 +171,14 @@ g.test('buffer,device_mismatch')
   .beforeAllSubcases(t => {
     t.selectMismatchedDeviceOrSkipTestCase(undefined);
   })
-  .fn(async t => {
+  .fn(t => {
     const { mismatched } = t.params;
-    const device = mismatched ? t.mismatchedDevice : t.device;
+    const sourceDevice = mismatched ? t.mismatchedDevice : t.device;
 
-    const buffer = device.createBuffer({
+    const buffer = sourceDevice.createBuffer({
       size: 16,
       usage: GPUBufferUsage.COPY_DST,
     });
-
     t.trackForCleanup(buffer);
 
     const data = new Uint8Array(16);

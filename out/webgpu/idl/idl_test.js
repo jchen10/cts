@@ -10,9 +10,10 @@
  * Base fixture for testing the exposed interface is correct (without actually using WebGPU).
  */
 export class IDLTest extends Fixture {
-  async init() {
+  init() {
     // Ensure the GPU provider is initialized
     getGPU();
+    return Promise.resolve();
   }
 
   /**
@@ -36,5 +37,6 @@ export class IDLTest extends Fixture {
     actKeys.length === expKeys.length,
     () => `Had ${actKeys.length} keys, expected ${expKeys.length}`);
 
-  }}
+  }
+}
 //# sourceMappingURL=idl_test.js.map

@@ -55,7 +55,7 @@ Test that rowsPerImage must be at least the copy height (if defined).
       .unless(p => p.dimension === '1d' && p.copyHeightInBlocks !== 1)
       .unless(p => p.copyDepth > p.size[2])
   )
-  .fn(async t => {
+  .fn(t => {
     const { rowsPerImage, copyHeightInBlocks, copyDepth, dimension, size, method } = t.params;
 
     const format = 'rgba8unorm';
@@ -100,7 +100,7 @@ Test an error is produced when offset+requiredBytesInCopy overflows GPUSize64.
         { bytesPerRow: 2 ** 31, rowsPerImage: 2 ** 31, depthOrArrayLayers: 16, _success: false }, // bytesPerRow * rowsPerImage * (depthOrArrayLayers - 1) overflows.
       ])
   )
-  .fn(async t => {
+  .fn(t => {
     const { method, bytesPerRow, rowsPerImage, depthOrArrayLayers, _success } = t.params;
 
     const texture = t.device.createTexture({
@@ -182,7 +182,7 @@ Test the computation of requiredBytesInCopy by computing the minimum data size f
     const info = kTextureFormatInfo[t.params.format];
     t.selectDeviceOrSkipTestCase(info.feature);
   })
-  .fn(async t => {
+  .fn(t => {
     const {
       offset,
       bytesPerRowPadding,
@@ -254,7 +254,7 @@ Test that rowsPerImage has no alignment constraints.
     const info = kTextureFormatInfo[t.params.format];
     t.selectDeviceOrSkipTestCase(info.feature);
   })
-  .fn(async t => {
+  .fn(t => {
     const { rowsPerImage, format, method } = t.params;
     const info = kTextureFormatInfo[format];
 
@@ -296,7 +296,7 @@ Test the alignment requirement on the linear data offset (block size, or 4 for d
     const info = kTextureFormatInfo[t.params.format];
     t.selectDeviceOrSkipTestCase(info.feature);
   })
-  .fn(async t => {
+  .fn(t => {
     const { format, offset, method } = t.params;
     const info = kTextureFormatInfo[format];
 
@@ -358,7 +358,6 @@ Test that bytesPerRow, if specified must be big enough for a full copy row.
             copyWidthInBlocks: 256 / info.bytesPerBlock,
             _success: true,
           },
-
           // Copying into smaller texture when padding in bytesPerRow is enough should work unless
           // it is a depth/stencil typed format.
           {
@@ -367,7 +366,6 @@ Test that bytesPerRow, if specified must be big enough for a full copy row.
             copyWidthInBlocks: 256 / info.bytesPerBlock - 1,
             _success: !(info.stencil || info.depth),
           },
-
           // Unaligned bytesPerRow should not work unless the method is 'WriteTexture'.
           {
             bytesPerRow: 128,
@@ -375,14 +373,12 @@ Test that bytesPerRow, if specified must be big enough for a full copy row.
             copyWidthInBlocks: 128 / info.bytesPerBlock,
             _success: p.method === 'WriteTexture',
           },
-
           {
             bytesPerRow: 384,
             widthInBlocks: 384 / info.bytesPerBlock,
             copyWidthInBlocks: 384 / info.bytesPerBlock,
             _success: p.method === 'WriteTexture',
           },
-
           // When bytesPerRow is smaller than bytesInLastRow copying should fail.
           {
             bytesPerRow: 256,
@@ -390,7 +386,6 @@ Test that bytesPerRow, if specified must be big enough for a full copy row.
             copyWidthInBlocks: (2 * 256) / info.bytesPerBlock,
             _success: false,
           },
-
           // When copyHeightInBlocks > 1, bytesPerRow must be specified.
           {
             bytesPerRow: undefined,
@@ -405,7 +400,7 @@ Test that bytesPerRow, if specified must be big enough for a full copy row.
     const info = kTextureFormatInfo[t.params.format];
     t.selectDeviceOrSkipTestCase(info.feature);
   })
-  .fn(async t => {
+  .fn(t => {
     const {
       method,
       format,
@@ -432,7 +427,6 @@ Test that bytesPerRow, if specified must be big enough for a full copy row.
       height: copyHeightInBlocks * info.blockHeight,
       depthOrArrayLayers: copyDepth,
     };
-
     const { minDataSizeOrOverestimate } = dataBytesForCopyOrOverestimate({
       layout,
       format,
@@ -461,7 +455,7 @@ Test that the offset cannot be larger than the linear data size (even for an emp
       .combine('offsetInBlocks', [0, 1, 2])
       .combine('dataSizeInBlocks', [0, 1, 2])
   )
-  .fn(async t => {
+  .fn(t => {
     const { offsetInBlocks, dataSizeInBlocks, method } = t.params;
 
     const format = 'rgba8unorm';

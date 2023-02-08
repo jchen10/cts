@@ -13,7 +13,7 @@ desc(
 `Tests execution of a huge number of render passes using the same GPURenderPipeline. This uses
 a single render pass for every output fragment, with each pass executing a one-vertex draw call.`).
 
-fn(async (t) => {
+fn((t) => {
   const kSize = 1024;
   const module = t.device.createShaderModule({
     code: `
@@ -28,8 +28,8 @@ fn(async (t) => {
     @fragment fn fmain() -> @location(0) vec4<f32> {
       return vec4<f32>(1.0, 0.0, 1.0, 1.0);
     }
-    ` });
-
+    `
+  });
   const pipeline = t.device.createRenderPipeline({
     layout: 'auto',
     vertex: { module, entryPoint: 'vmain', buffers: [] },
@@ -37,23 +37,23 @@ fn(async (t) => {
     fragment: {
       targets: [{ format: 'rgba8unorm' }],
       module,
-      entryPoint: 'fmain' } });
-
-
+      entryPoint: 'fmain'
+    }
+  });
   const renderTarget = t.device.createTexture({
     size: [kSize, kSize],
     usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
-    format: 'rgba8unorm' });
-
+    format: 'rgba8unorm'
+  });
   const renderPassDescriptor = {
     colorAttachments: [
     {
       view: renderTarget.createView(),
       loadOp: 'load',
-      storeOp: 'store' }] };
+      storeOp: 'store'
+    }]
 
-
-
+  };
   const encoder = t.device.createCommandEncoder();
   range(kSize * kSize, (i) => {
     const pass = encoder.beginRenderPass(renderPassDescriptor);
@@ -64,8 +64,8 @@ fn(async (t) => {
   t.device.queue.submit([encoder.finish()]);
   t.expectSingleColor(renderTarget, 'rgba8unorm', {
     size: [kSize, kSize, 1],
-    exp: { R: 1, G: 0, B: 1, A: 1 } });
-
+    exp: { R: 1, G: 0, B: 1, A: 1 }
+  });
 });
 
 g.test('pipeline_churn').
@@ -73,7 +73,7 @@ desc(
 `Tests execution of a large number of render pipelines, each within its own render pass. Each
 pass does a single draw call, with one pass per output fragment.`).
 
-fn(async (t) => {
+fn((t) => {
   const kWidth = 64;
   const kHeight = 8;
   const module = t.device.createShaderModule({
@@ -90,34 +90,34 @@ fn(async (t) => {
     @fragment fn fmain() -> @location(0) vec4<f32> {
       return vec4<f32>(1.0, 0.0, 1.0, 1.0);
     }
-    ` });
-
+    `
+  });
   const renderTarget = t.device.createTexture({
     size: [kWidth, kHeight],
     usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
-    format: 'rgba8unorm' });
-
+    format: 'rgba8unorm'
+  });
   const depthTarget = t.device.createTexture({
     size: [kWidth, kHeight],
     usage: GPUTextureUsage.RENDER_ATTACHMENT,
-    format: 'depth24plus-stencil8' });
-
+    format: 'depth24plus-stencil8'
+  });
   const renderPassDescriptor = {
     colorAttachments: [
     {
       view: renderTarget.createView(),
       loadOp: 'load',
-      storeOp: 'store' }],
-
+      storeOp: 'store'
+    }],
 
     depthStencilAttachment: {
       view: depthTarget.createView(),
       depthLoadOp: 'load',
       depthStoreOp: 'store',
       stencilLoadOp: 'load',
-      stencilStoreOp: 'discard' } };
-
-
+      stencilStoreOp: 'discard'
+    }
+  };
   const encoder = t.device.createCommandEncoder();
   range(kWidth * kHeight, (i) => {
     const pipeline = t.device.createRenderPipeline({
@@ -128,14 +128,14 @@ fn(async (t) => {
         format: 'depth24plus-stencil8',
 
         // Not really used, but it ensures that each pipeline is unique.
-        depthBias: i },
-
+        depthBias: i
+      },
       fragment: {
         targets: [{ format: 'rgba8unorm' }],
         module,
-        entryPoint: 'fmain' } });
-
-
+        entryPoint: 'fmain'
+      }
+    });
     const pass = encoder.beginRenderPass(renderPassDescriptor);
     pass.setPipeline(pipeline);
     pass.draw(1, 1, i);
@@ -144,8 +144,8 @@ fn(async (t) => {
   t.device.queue.submit([encoder.finish()]);
   t.expectSingleColor(renderTarget, 'rgba8unorm', {
     size: [kWidth, kHeight, 1],
-    exp: { R: 1, G: 0, B: 1, A: 1 } });
-
+    exp: { R: 1, G: 0, B: 1, A: 1 }
+  });
 });
 
 g.test('bind_group_churn').
@@ -155,7 +155,7 @@ a single render pass with a single pipeline, and one draw call per fragment of t
 Each draw call is made with a unique bind group 0, with binding 0 referencing a unique uniform
 buffer.`).
 
-fn(async (t) => {
+fn((t) => {
   const kSize = 128;
   const module = t.device.createShaderModule({
     code: `
@@ -172,17 +172,17 @@ fn(async (t) => {
     @fragment fn fmain() -> @location(0) vec4<f32> {
       return vec4<f32>(1.0, 0.0, 1.0, 1.0);
     }
-    ` });
-
+    `
+  });
   const layout = t.device.createBindGroupLayout({
     entries: [
     {
       binding: 0,
       visibility: GPUShaderStage.VERTEX,
-      buffer: { type: 'uniform' } }] });
+      buffer: { type: 'uniform' }
+    }]
 
-
-
+  });
   const pipeline = t.device.createRenderPipeline({
     layout: t.device.createPipelineLayout({ bindGroupLayouts: [layout] }),
     vertex: { module, entryPoint: 'vmain', buffers: [] },
@@ -190,23 +190,23 @@ fn(async (t) => {
     fragment: {
       targets: [{ format: 'rgba8unorm' }],
       module,
-      entryPoint: 'fmain' } });
-
-
+      entryPoint: 'fmain'
+    }
+  });
   const renderTarget = t.device.createTexture({
     size: [kSize, kSize],
     usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
-    format: 'rgba8unorm' });
-
+    format: 'rgba8unorm'
+  });
   const renderPassDescriptor = {
     colorAttachments: [
     {
       view: renderTarget.createView(),
       loadOp: 'load',
-      storeOp: 'store' }] };
+      storeOp: 'store'
+    }]
 
-
-
+  };
   const encoder = t.device.createCommandEncoder();
   const pass = encoder.beginRenderPass(renderPassDescriptor);
   pass.setPipeline(pipeline);
@@ -214,8 +214,8 @@ fn(async (t) => {
     const buffer = t.device.createBuffer({
       size: 4,
       usage: GPUBufferUsage.UNIFORM,
-      mappedAtCreation: true });
-
+      mappedAtCreation: true
+    });
     new Uint32Array(buffer.getMappedRange())[0] = i;
     buffer.unmap();
     pass.setBindGroup(
@@ -228,8 +228,8 @@ fn(async (t) => {
   t.device.queue.submit([encoder.finish()]);
   t.expectSingleColor(renderTarget, 'rgba8unorm', {
     size: [kSize, kSize, 1],
-    exp: { R: 1, G: 0, B: 1, A: 1 } });
-
+    exp: { R: 1, G: 0, B: 1, A: 1 }
+  });
 });
 
 g.test('many_draws').
@@ -237,7 +237,7 @@ desc(
 `Tests execution of render passes with a huge number of draw calls. This uses a single
 render pass with a single pipeline, and one draw call per fragment of the output texture.`).
 
-fn(async (t) => {
+fn((t) => {
   const kSize = 4096;
   const module = t.device.createShaderModule({
     code: `
@@ -252,8 +252,8 @@ fn(async (t) => {
     @fragment fn fmain() -> @location(0) vec4<f32> {
       return vec4<f32>(1.0, 0.0, 1.0, 1.0);
     }
-    ` });
-
+    `
+  });
   const pipeline = t.device.createRenderPipeline({
     layout: 'auto',
     vertex: { module, entryPoint: 'vmain', buffers: [] },
@@ -261,23 +261,23 @@ fn(async (t) => {
     fragment: {
       targets: [{ format: 'rgba8unorm' }],
       module,
-      entryPoint: 'fmain' } });
-
-
+      entryPoint: 'fmain'
+    }
+  });
   const renderTarget = t.device.createTexture({
     size: [kSize, kSize],
     usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
-    format: 'rgba8unorm' });
-
+    format: 'rgba8unorm'
+  });
   const renderPassDescriptor = {
     colorAttachments: [
     {
       view: renderTarget.createView(),
       loadOp: 'load',
-      storeOp: 'store' }] };
+      storeOp: 'store'
+    }]
 
-
-
+  };
   const encoder = t.device.createCommandEncoder();
   const pass = encoder.beginRenderPass(renderPassDescriptor);
   pass.setPipeline(pipeline);
@@ -286,8 +286,8 @@ fn(async (t) => {
   t.device.queue.submit([encoder.finish()]);
   t.expectSingleColor(renderTarget, 'rgba8unorm', {
     size: [kSize, kSize, 1],
-    exp: { R: 1, G: 0, B: 1, A: 1 } });
-
+    exp: { R: 1, G: 0, B: 1, A: 1 }
+  });
 });
 
 g.test('huge_draws').
@@ -295,7 +295,7 @@ desc(
 `Tests execution of several render passes with huge draw calls. Each pass uses a single draw
 call which draws multiple vertices for each fragment of a large output texture.`).
 
-fn(async (t) => {
+fn((t) => {
   const kSize = 32768;
   const kTextureSize = 4096;
   const kVertsPerFragment = kSize * kSize / (kTextureSize * kTextureSize);
@@ -313,8 +313,8 @@ fn(async (t) => {
     @fragment fn fmain() -> @location(0) vec4<f32> {
       return vec4<f32>(1.0, 0.0, 1.0, 1.0);
     }
-    ` });
-
+    `
+  });
   const pipeline = t.device.createRenderPipeline({
     layout: 'auto',
     vertex: { module, entryPoint: 'vmain', buffers: [] },
@@ -322,23 +322,23 @@ fn(async (t) => {
     fragment: {
       targets: [{ format: 'rgba8unorm' }],
       module,
-      entryPoint: 'fmain' } });
-
-
+      entryPoint: 'fmain'
+    }
+  });
   const renderTarget = t.device.createTexture({
     size: [kTextureSize, kTextureSize],
     usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
-    format: 'rgba8unorm' });
-
+    format: 'rgba8unorm'
+  });
   const renderPassDescriptor = {
     colorAttachments: [
     {
       view: renderTarget.createView(),
       loadOp: 'load',
-      storeOp: 'store' }] };
+      storeOp: 'store'
+    }]
 
-
-
+  };
 
   const encoder = t.device.createCommandEncoder();
   const pass = encoder.beginRenderPass(renderPassDescriptor);
@@ -348,7 +348,7 @@ fn(async (t) => {
   t.device.queue.submit([encoder.finish()]);
   t.expectSingleColor(renderTarget, 'rgba8unorm', {
     size: [kTextureSize, kTextureSize, 1],
-    exp: { R: 1, G: 0, B: 1, A: 1 } });
-
+    exp: { R: 1, G: 0, B: 1, A: 1 }
+  });
 });
 //# sourceMappingURL=render_pass.spec.js.map

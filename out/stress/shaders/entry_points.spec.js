@@ -27,7 +27,7 @@ desc(
 TODO: There may be a normative limit to the number of entry points allowed in
 a shader, in which case this would become a validation test instead.`).
 
-fn(async (t) => {
+fn((t) => {
   const data = new Uint32Array([0]);
   const buffer = t.makeBufferWithContents(data, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC);
 
@@ -36,25 +36,25 @@ fn(async (t) => {
   const kNumEntryPoints = 200;
 
   const shader = t.device.createShaderModule({
-    code: makeCode(kNumEntryPoints) });
-
+    code: makeCode(kNumEntryPoints)
+  });
 
   const layout = t.device.createBindGroupLayout({
     entries: [
     {
       binding: 0,
       visibility: GPUShaderStage.COMPUTE,
-      buffer: { type: 'storage' } }] });
+      buffer: { type: 'storage' }
+    }]
 
-
-
+  });
   const pipelineLayout = t.device.createPipelineLayout({
-    bindGroupLayouts: [layout] });
-
+    bindGroupLayouts: [layout]
+  });
   const bindGroup = t.device.createBindGroup({
     layout,
-    entries: [{ binding: 0, resource: { buffer } }] });
-
+    entries: [{ binding: 0, resource: { buffer } }]
+  });
 
   const encoder = t.device.createCommandEncoder();
   range(kNumEntryPoints, (i) => {
@@ -62,14 +62,14 @@ fn(async (t) => {
       layout: pipelineLayout,
       compute: {
         module: shader,
-        entryPoint: `computeMain${i}` } });
-
-
+        entryPoint: `computeMain${i}`
+      }
+    });
 
     const pass = encoder.beginComputePass();
     pass.setPipeline(pipeline);
     pass.setBindGroup(0, bindGroup);
-    pass.dispatch(1);
+    pass.dispatchWorkgroups(1);
     pass.end();
   });
 

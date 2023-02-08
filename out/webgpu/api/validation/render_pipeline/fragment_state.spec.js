@@ -9,7 +9,8 @@ kTextureFormats,
 kRenderableColorTextureFormats,
 kTextureFormatInfo,
 kBlendFactors,
-kBlendOperations } from
+kBlendOperations,
+kMaxColorAttachments } from
 '../../../capability_info.js';
 import {
 getFragmentShaderCodeWithOutput,
@@ -27,45 +28,22 @@ const values = [0, 1, 0, 1];
 g.test('color_target_exists').
 desc(`Tests creating a complete render pipeline requires at least one color target state.`).
 params((u) => u.combine('isAsync', [false, true])).
-fn(async (t) => {
+fn((t) => {
   const { isAsync } = t.params;
 
   const goodDescriptor = t.getDescriptor({
-    targets: [{ format: 'rgba8unorm' }] });
-
+    targets: [{ format: 'rgba8unorm' }]
+  });
 
   // Control case
   t.doCreateRenderPipelineTest(isAsync, true, goodDescriptor);
 
   // Fail because lack of color states
   const badDescriptor = t.getDescriptor({
-    targets: [] });
-
+    targets: []
+  });
 
   t.doCreateRenderPipelineTest(isAsync, false, badDescriptor);
-});
-
-g.test('max_color_attachments_limit').
-desc(
-`Tests that color state targets length must not be larger than device.limits.maxColorAttachments.`).
-
-params((u) => u.combine('isAsync', [false, true]).combine('targetsLength', [8, 9])).
-fn(async (t) => {
-  const { isAsync, targetsLength } = t.params;
-
-  const descriptor = t.getDescriptor({
-    targets: range(targetsLength, (i) => {
-      // Set writeMask to 0 for attachments without fragment output
-      return { format: 'rgba8unorm', writeMask: i === 0 ? 0xf : 0 };
-    }),
-    fragmentShaderCode: kDefaultFragmentShaderCode });
-
-
-  t.doCreateRenderPipelineTest(
-  isAsync,
-  targetsLength <= t.device.limits.maxColorAttachments,
-  descriptor);
-
 });
 
 g.test('targets_format_renderable').
@@ -76,13 +54,120 @@ beforeAllSubcases((t) => {
   const info = kTextureFormatInfo[format];
   t.selectDeviceOrSkipTestCase(info.feature);
 }).
-fn(async (t) => {
+fn((t) => {
   const { isAsync, format } = t.params;
   const info = kTextureFormatInfo[format];
 
   const descriptor = t.getDescriptor({ targets: [{ format }] });
 
   t.doCreateRenderPipelineTest(isAsync, info.renderable && info.color, descriptor);
+});
+
+g.test('limits,maxColorAttachments').
+desc(
+`Tests that color state targets length must not be larger than device.limits.maxColorAttachments.`).
+
+params((u) => u.combine('isAsync', [false, true]).combine('targetsLength', [8, 9])).
+fn((t) => {
+  const { isAsync, targetsLength } = t.params;
+
+  const descriptor = t.getDescriptor({
+    targets: range(targetsLength, (i) => {
+      // Set writeMask to 0 for attachments without fragment output
+      return { format: 'rg8unorm', writeMask: i === 0 ? 0xf : 0 };
+    }),
+    fragmentShaderCode: kDefaultFragmentShaderCode
+  });
+
+  t.doCreateRenderPipelineTest(
+  isAsync,
+  targetsLength <= t.device.limits.maxColorAttachments,
+  descriptor);
+
+});
+
+g.test('limits,maxColorAttachmentBytesPerSample,aligned').
+desc(
+`
+  Tests that the total color attachment bytes per sample must not be larger than
+  maxColorAttachmentBytesPerSample when using the same format for multiple attachments.
+  `).
+
+params((u) =>
+u.
+combine('format', kRenderableColorTextureFormats).
+beginSubcases().
+combine(
+'attachmentCount',
+range(kMaxColorAttachments, (i) => i + 1)).
+
+combine('isAsync', [false, true])).
+
+fn((t) => {
+  const { format, attachmentCount, isAsync } = t.params;
+  const info = kTextureFormatInfo[format];
+
+  const descriptor = t.getDescriptor({
+    targets: range(attachmentCount, () => {
+      return { format, writeMask: 0 };
+    })
+  });
+  const shouldError =
+  info.renderTargetPixelByteCost === undefined ||
+  info.renderTargetPixelByteCost * attachmentCount >
+  t.device.limits.maxColorAttachmentBytesPerSample;
+
+  t.doCreateRenderPipelineTest(isAsync, !shouldError, descriptor);
+});
+
+g.test('limits,maxColorAttachmentBytesPerSample,unaligned').
+desc(
+`
+  Tests that the total color attachment bytes per sample must not be larger than
+  maxColorAttachmentBytesPerSample when using various sets of (potentially) unaligned formats.
+  `).
+
+params((u) =>
+u.
+combineWithParams([
+// Alignment causes the first 1 byte R8Unorm to become 4 bytes. So even though
+// 1+4+8+16+1 < 32, the 4 byte alignment requirement of R32Float makes the first R8Unorm
+// become 4 and 4+4+8+16+1 > 32. Re-ordering this so the R8Unorm's are at the end, however
+// is allowed: 4+8+16+1+1 < 32.
+{
+  formats: [
+  'r8unorm',
+  'r32float',
+  'rgba8unorm',
+  'rgba32float',
+  'r8unorm'],
+
+  _success: true
+},
+{
+  formats: [
+  'r32float',
+  'rgba8unorm',
+  'rgba32float',
+  'r8unorm',
+  'r8unorm'],
+
+  _success: false
+}]).
+
+beginSubcases().
+combine('isAsync', [false, true])).
+
+fn((t) => {
+  const { formats, _success, isAsync } = t.params;
+
+  const descriptor = t.getDescriptor({
+    targets: formats.map((f) => {
+      return { format: f, writeMask: 0 };
+    })
+  });
+
+  t.doCreateRenderPipelineTest(isAsync, _success, descriptor);
 });
 
 g.test('targets_format_filterable').
@@ -99,7 +184,7 @@ beforeAllSubcases((t) => {
   const info = kTextureFormatInfo[format];
   t.selectDeviceOrSkipTestCase(info.feature);
 }).
-fn(async (t) => {
+fn((t) => {
   const { isAsync, format, hasBlend } = t.params;
   const info = kTextureFormatInfo[format];
 
@@ -107,10 +192,10 @@ fn(async (t) => {
     targets: [
     {
       format,
-      blend: hasBlend ? { color: {}, alpha: {} } : undefined }] });
+      blend: hasBlend ? { color: {}, alpha: {} } : undefined
+    }]
 
-
-
+  });
 
   t.doCreateRenderPipelineTest(isAsync, !hasBlend || info.sampleType === 'float', descriptor);
 });
@@ -132,19 +217,19 @@ combine('srcFactor', kBlendFactors).
 combine('dstFactor', kBlendFactors).
 combine('operation', kBlendOperations)).
 
-fn(async (t) => {
+fn((t) => {
   const { isAsync, component, srcFactor, dstFactor, operation } = t.params;
 
   const defaultBlendComponent = {
     srcFactor: 'src-alpha',
     dstFactor: 'dst-alpha',
-    operation: 'add' };
-
+    operation: 'add'
+  };
   const blendComponentToTest = {
     srcFactor,
     dstFactor,
-    operation };
-
+    operation
+  };
   const format = 'rgba8unorm';
 
   const descriptor = t.getDescriptor({
@@ -153,11 +238,11 @@ fn(async (t) => {
       format,
       blend: {
         color: component === 'color' ? blendComponentToTest : defaultBlendComponent,
-        alpha: component === 'alpha' ? blendComponentToTest : defaultBlendComponent } }] });
+        alpha: component === 'alpha' ? blendComponentToTest : defaultBlendComponent
+      }
+    }]
 
-
-
-
+  });
 
   if (operation === 'min' || operation === 'max') {
     const _success = srcFactor === 'one' && dstFactor === 'one';
@@ -170,17 +255,17 @@ fn(async (t) => {
 g.test('targets_write_mask').
 desc(`Tests that color target state write mask must be < 16.`).
 params((u) => u.combine('isAsync', [false, true]).combine('writeMask', [0, 0xf, 0x10, 0x80000001])).
-fn(async (t) => {
+fn((t) => {
   const { isAsync, writeMask } = t.params;
 
   const descriptor = t.getDescriptor({
     targets: [
     {
       format: 'rgba8unorm',
-      writeMask }] });
+      writeMask
+    }]
 
-
-
+  });
 
   t.doCreateRenderPipelineTest(isAsync, writeMask < 16, descriptor);
 });
@@ -211,7 +296,7 @@ p.format !== undefined && p.shaderOutput !== undefined ? [0, 0x1, 0x2, 0x4, 0x8]
 beforeAllSubcases((t) => {
   t.selectDeviceForTextureFormatOrSkipTestCase(t.params.format);
 }).
-fn(async (t) => {
+fn((t) => {
   const { isAsync, format, writeMask, shaderOutput } = t.params;
 
   const descriptor = t.getDescriptor({
@@ -221,9 +306,9 @@ fn(async (t) => {
     fragmentShaderCode: getFragmentShaderCodeWithOutput(
     shaderOutput ?
     [{ values, plainType: shaderOutput.scalar, componentCount: shaderOutput.count }] :
-    []) });
+    [])
 
-
+  });
 
   let success = true;
   if (format) {
@@ -268,7 +353,7 @@ beforeAllSubcases((t) => {
   const info = kTextureFormatInfo[format];
   t.selectDeviceOrSkipTestCase(info.feature);
 }).
-fn(async (t) => {
+fn((t) => {
   const sampleType = 'float';
   const {
     isAsync,
@@ -277,8 +362,8 @@ fn(async (t) => {
     colorSrcFactor,
     colorDstFactor,
     alphaSrcFactor,
-    alphaDstFactor } =
-  t.params;
+    alphaDstFactor
+  } = t.params;
   const info = kTextureFormatInfo[format];
 
   const descriptor = t.getDescriptor({
@@ -287,14 +372,14 @@ fn(async (t) => {
       format,
       blend: {
         color: { srcFactor: colorSrcFactor, dstFactor: colorDstFactor },
-        alpha: { srcFactor: alphaSrcFactor, dstFactor: alphaDstFactor } } }],
-
-
+        alpha: { srcFactor: alphaSrcFactor, dstFactor: alphaDstFactor }
+      }
+    }],
 
     fragmentShaderCode: getFragmentShaderCodeWithOutput([
-    { values, plainType: getPlainTypeInfo(sampleType), componentCount }]) });
+    { values, plainType: getPlainTypeInfo(sampleType), componentCount }])
 
-
+  });
 
   const colorBlendReadsSrcAlpha =
   colorSrcFactor?.includes('src-alpha') || colorDstFactor?.includes('src-alpha');

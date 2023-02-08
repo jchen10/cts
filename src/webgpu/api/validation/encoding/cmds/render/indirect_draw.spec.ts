@@ -58,12 +58,12 @@ g.test('indirect_buffer,device_mismatch')
   .beforeAllSubcases(t => {
     t.selectMismatchedDeviceOrSkipTestCase(undefined);
   })
-  .fn(async t => {
+  .fn(t => {
     const { encoderType, indexed, mismatched } = t.params;
 
-    const device = mismatched ? t.mismatchedDevice : t.device;
+    const sourceDevice = mismatched ? t.mismatchedDevice : t.device;
 
-    const indirectBuffer = device.createBuffer({
+    const indirectBuffer = sourceDevice.createBuffer({
       size: 256,
       usage: GPUBufferUsage.INDIRECT,
     });

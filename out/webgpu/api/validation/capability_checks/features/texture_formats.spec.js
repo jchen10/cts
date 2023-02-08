@@ -32,7 +32,7 @@ beforeAllSubcases((t) => {
     t.selectDeviceOrSkipTestCase(formatInfo.feature);
   }
 }).
-fn(async (t) => {
+fn((t) => {
   const { format, enable_required_feature } = t.params;
 
   const formatInfo = kTextureFormatInfo[format];
@@ -40,8 +40,8 @@ fn(async (t) => {
     t.device.createTexture({
       format,
       size: [formatInfo.blockWidth, formatInfo.blockHeight, 1],
-      usage: GPUTextureUsage.TEXTURE_BINDING });
-
+      usage: GPUTextureUsage.TEXTURE_BINDING
+    });
   });
 });
 
@@ -63,7 +63,7 @@ beforeAllSubcases((t) => {
     t.selectDeviceOrSkipTestCase(formatInfo.feature);
   }
 }).
-fn(async (t) => {
+fn((t) => {
   const { format, enable_required_feature } = t.params;
 
   const formatInfo = kTextureFormatInfo[format];
@@ -72,8 +72,8 @@ fn(async (t) => {
       format,
       size: [formatInfo.blockWidth, formatInfo.blockHeight, 1],
       usage: GPUTextureUsage.TEXTURE_BINDING,
-      viewFormats: [format] });
-
+      viewFormats: [format]
+    });
   });
 });
 
@@ -95,7 +95,7 @@ beforeAllSubcases((t) => {
     t.selectDeviceOrSkipTestCase(formatInfo.feature);
   }
 }).
-fn(async (t) => {
+fn((t) => {
   const { format, enable_required_feature } = t.params;
 
   // If the required feature isn't enabled then the texture will fail to create and we won't be
@@ -109,8 +109,8 @@ fn(async (t) => {
   const testTexture = t.device.createTexture({
     format: textureFormat,
     size: [formatInfo.blockWidth, formatInfo.blockHeight, 1],
-    usage: GPUTextureUsage.TEXTURE_BINDING });
-
+    usage: GPUTextureUsage.TEXTURE_BINDING
+  });
   const testViewDesc = {
     format,
     dimension: '2d',
@@ -118,8 +118,8 @@ fn(async (t) => {
     arrayLayerCount: 1,
     baseMipLevel: 0,
     mipLevelCount: 1,
-    baseArrayLayer: 0 };
-
+    baseArrayLayer: 0
+  };
   t.shouldThrow(enable_required_feature ? false : 'TypeError', () => {
     testTexture.createView(testViewDesc);
   });
@@ -147,7 +147,7 @@ beforeAllSubcases((t) => {
     t.selectDeviceOrSkipTestCase(formatInfo.feature);
   }
 }).
-fn(async (t) => {
+fn((t) => {
   const { format, canvasType, enable_required_feature } = t.params;
 
   const canvas = createCanvas(t, canvasType, 2, 2);
@@ -157,8 +157,8 @@ fn(async (t) => {
   const canvasConf = {
     device: t.device,
     format,
-    usage: GPUTextureUsage.COPY_SRC | GPUTextureUsage.COPY_DST };
-
+    usage: GPUTextureUsage.COPY_SRC | GPUTextureUsage.COPY_DST
+  };
 
   if (enable_required_feature) {
     t.expectValidationError(() => {
@@ -196,7 +196,7 @@ beforeAllSubcases((t) => {
     t.selectDeviceForTextureFormatOrSkipTestCase(viewFormats);
   }
 }).
-fn(async (t) => {
+fn((t) => {
   const { viewFormats, canvasType, enable_required_feature } = t.params;
 
   const canvas = createCanvas(t, canvasType, 2, 2);
@@ -207,8 +207,8 @@ fn(async (t) => {
     device: t.device,
     format: 'bgra8unorm',
     usage: GPUTextureUsage.COPY_SRC | GPUTextureUsage.COPY_DST,
-    viewFormats: viewFormats };
-
+    viewFormats: viewFormats
+  };
 
   if (enable_required_feature) {
     t.expectValidationError(() => {
@@ -244,7 +244,7 @@ beforeAllSubcases((t) => {
     t.selectDeviceOrSkipTestCase(formatInfo.feature);
   }
 }).
-fn(async (t) => {
+fn((t) => {
   const { format, enable_required_feature } = t.params;
 
   t.shouldThrow(enable_required_feature ? false : 'TypeError', () => {
@@ -254,11 +254,11 @@ fn(async (t) => {
         binding: 0,
         visibility: GPUShaderStage.COMPUTE,
         storageTexture: {
-          format } }] });
+          format
+        }
+      }]
 
-
-
-
+    });
   });
 });
 
@@ -285,7 +285,7 @@ beforeAllSubcases((t) => {
     t.selectDeviceOrSkipTestCase(formatInfo.feature);
   }
 }).
-fn(async (t) => {
+fn((t) => {
   const { format, enable_required_feature } = t.params;
 
   t.shouldThrow(enable_required_feature ? false : 'TypeError', () => {
@@ -297,22 +297,22 @@ fn(async (t) => {
               @vertex
               fn main()-> @builtin(position) vec4<f32> {
                 return vec4<f32>(0.0, 0.0, 0.0, 1.0);
-              }` }),
-
-        entryPoint: 'main' },
-
+              }`
+        }),
+        entryPoint: 'main'
+      },
       fragment: {
         module: t.device.createShaderModule({
           code: `
               @fragment
               fn main() -> @location(0) vec4<f32> {
                 return vec4<f32>(0.0, 1.0, 0.0, 1.0);
-              }` }),
-
+              }`
+        }),
         entryPoint: 'main',
-        targets: [{ format }] } });
-
-
+        targets: [{ format }]
+      }
+    });
   });
 });
 
@@ -341,7 +341,7 @@ beforeAllSubcases((t) => {
     t.selectDeviceOrSkipTestCase(formatInfo.feature);
   }
 }).
-fn(async (t) => {
+fn((t) => {
   const { format, enable_required_feature } = t.params;
 
   t.shouldThrow(enable_required_feature ? false : 'TypeError', () => {
@@ -353,25 +353,25 @@ fn(async (t) => {
               @vertex
               fn main()-> @builtin(position) vec4<f32> {
                 return vec4<f32>(0.0, 0.0, 0.0, 1.0);
-              }` }),
-
-        entryPoint: 'main' },
-
+              }`
+        }),
+        entryPoint: 'main'
+      },
       depthStencil: {
-        format },
-
+        format
+      },
       fragment: {
         module: t.device.createShaderModule({
           code: `
               @fragment
               fn main() -> @location(0) vec4<f32> {
                 return vec4<f32>(0.0, 1.0, 0.0, 1.0);
-              }` }),
-
+              }`
+        }),
         entryPoint: 'main',
-        targets: [{ format: 'rgba8unorm' }] } });
-
-
+        targets: [{ format: 'rgba8unorm' }]
+      }
+    });
   });
 });
 
@@ -398,13 +398,13 @@ beforeAllSubcases((t) => {
     t.selectDeviceOrSkipTestCase(formatInfo.feature);
   }
 }).
-fn(async (t) => {
+fn((t) => {
   const { format, enable_required_feature } = t.params;
 
   t.shouldThrow(enable_required_feature ? false : 'TypeError', () => {
     t.device.createRenderBundleEncoder({
-      colorFormats: [format] });
-
+      colorFormats: [format]
+    });
   });
 });
 
@@ -433,14 +433,14 @@ beforeAllSubcases((t) => {
     t.selectDeviceOrSkipTestCase(formatInfo.feature);
   }
 }).
-fn(async (t) => {
+fn((t) => {
   const { format, enable_required_feature } = t.params;
 
   t.shouldThrow(enable_required_feature ? false : 'TypeError', () => {
     t.device.createRenderBundleEncoder({
       colorFormats: ['rgba8unorm'],
-      depthStencilFormat: format });
-
+      depthStencilFormat: format
+    });
   });
 });
 //# sourceMappingURL=texture_formats.spec.js.map

@@ -15,19 +15,19 @@ paramsSubcasesOnly((u) =>
 u //
 .combine('usage', kBufferUsages)).
 
-fn(async (t) => {
+fn((t) => {
   const { usage } = t.params;
   const buf = t.device.createBuffer({
     size: 4,
-    usage });
-
+    usage
+  });
 
   buf.destroy();
 });
 
 g.test('error_buffer').
 desc('Test that error buffers may be destroyed without generating validation errors.').
-fn(async (t) => {
+fn((t) => {
   const buf = t.getErrorBuffer();
   buf.destroy();
 });
@@ -47,7 +47,7 @@ combineWithParams([
 { size: 4, usage: GPUConst.BufferUsage.COPY_DST | GPUConst.BufferUsage.MAP_READ }])).
 
 
-fn(async (t) => {
+fn((t) => {
   const buf = t.device.createBuffer(t.params);
 
   buf.destroy();
@@ -70,12 +70,12 @@ combineWithParams([
 { usage: GPUConst.BufferUsage.COPY_DST | GPUConst.BufferUsage.MAP_READ },
 {
   usage: GPUConst.BufferUsage.MAP_WRITE | GPUConst.BufferUsage.COPY_SRC,
-  mapMode: GPUConst.MapMode.WRITE },
-
+  mapMode: GPUConst.MapMode.WRITE
+},
 {
   usage: GPUConst.BufferUsage.COPY_DST | GPUConst.BufferUsage.MAP_READ,
-  mapMode: GPUConst.MapMode.READ }]).
-
+  mapMode: GPUConst.MapMode.READ
+}]).
 
 unless((p) => p.mappedAtCreation === false && p.mapMode === undefined)).
 
@@ -84,8 +84,8 @@ fn(async (t) => {
   const buf = t.device.createBuffer({
     size: 4,
     usage,
-    mappedAtCreation });
-
+    mappedAtCreation
+  });
 
   if (mapMode !== undefined) {
     if (mappedAtCreation) {

@@ -29,7 +29,6 @@ class F extends ValidationTest {
               return vec4<f32>(0.0, 0.0, 0.0, 1.0);
             }`,
         }),
-
         entryPoint: 'main',
         buffers: [
           {
@@ -42,7 +41,6 @@ class F extends ValidationTest {
           },
         ],
       },
-
       fragment: {
         module: this.device.createShaderModule({
           code: `
@@ -50,11 +48,9 @@ class F extends ValidationTest {
               return vec4<f32>(0.0, 1.0, 0.0, 1.0);
             }`,
         }),
-
         entryPoint: 'main',
         targets: [{ format: 'rgba8unorm' }],
       },
-
       primitive: { topology: 'triangle-list' },
     });
   }
@@ -102,7 +98,7 @@ In this test we test that missing index buffer for a used slot will cause valida
   )
   .unimplemented();
 
-g.test('vertex_buffers_inherit_from_previous_pipeline').fn(async t => {
+g.test('vertex_buffers_inherit_from_previous_pipeline').fn(t => {
   const pipeline1 = t.createRenderPipeline(1);
   const pipeline2 = t.createRenderPipeline(2);
 
@@ -137,7 +133,7 @@ g.test('vertex_buffers_inherit_from_previous_pipeline').fn(async t => {
   }
 });
 
-g.test('vertex_buffers_do_not_inherit_between_render_passes').fn(async t => {
+g.test('vertex_buffers_do_not_inherit_between_render_passes').fn(t => {
   const pipeline1 = t.createRenderPipeline(1);
   const pipeline2 = t.createRenderPipeline(2);
 

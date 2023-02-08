@@ -11,7 +11,7 @@ import { Fixture } from '../../../common/framework/fixture.js';
 import { makeTestGroup } from '../../../common/framework/test_group.js';
 import { getGPU } from '../../../common/util/navigator_gpu.js';
 import { assert, raceWithRejectOnTimeout } from '../../../common/util/util.js';
-import { kErrorScopeFilters } from '../../capability_info.js';
+import { kErrorScopeFilters, kGeneratableErrorScopeFilters } from '../../capability_info.js';
 import { kMaxUnsignedLongLongValue } from '../../constants.js';
 
 class ErrorScopeTests extends Fixture {
@@ -63,6 +63,8 @@ class ErrorScopeTests extends Fixture {
         return error instanceof GPUOutOfMemoryError;
       case 'validation':
         return error instanceof GPUValidationError;
+      case 'internal':
+        return error instanceof GPUInternalError;
     }
   }
 
@@ -105,7 +107,7 @@ Tests that error scopes catches their expected errors, firing an uncaptured erro
     `
   )
   .params(u =>
-    u.combine('errorType', kErrorScopeFilters).combine('errorFilter', kErrorScopeFilters)
+    u.combine('errorType', kGeneratableErrorScopeFilters).combine('errorFilter', kErrorScopeFilters)
   )
   .fn(async t => {
     const { errorType, errorFilter } = t.params;
@@ -134,7 +136,7 @@ g.test('empty')
 Tests that popping an empty error scope stack should reject.
     `
   )
-  .fn(async t => {
+  .fn(t => {
     const promise = t.device.popErrorScope();
     t.shouldReject('OperationError', promise);
   });
@@ -149,7 +151,9 @@ Tests that an error bubbles to the correct parent scope.
     `
   )
   .params(u =>
-    u.combine('errorFilter', kErrorScopeFilters).combine('stackDepth', [1, 10, 100, 1000])
+    u
+      .combine('errorFilter', kGeneratableErrorScopeFilters)
+      .combine('stackDepth', [1, 10, 100, 1000])
   )
   .fn(async t => {
     const { errorFilter, stackDepth } = t.params;
@@ -187,7 +191,9 @@ Tests that an error does not bubbles to parent scopes when local scope matches.
     `
   )
   .params(u =>
-    u.combine('errorFilter', kErrorScopeFilters).combine('stackDepth', [1, 10, 100, 1000, 100000])
+    u
+      .combine('errorFilter', kGeneratableErrorScopeFilters)
+      .combine('stackDepth', [1, 10, 100, 1000, 100000])
   )
   .fn(async t => {
     const { errorFilter, stackDepth } = t.params;
@@ -234,7 +240,7 @@ Tests that sibling error scopes need to be balanced.
     }
 
     {
-      // Trying to pop an additional non-exisiting scope should reject.
+      // Trying to pop an additional non-existing scope should reject.
       const promise = t.device.popErrorScope();
       t.shouldReject('OperationError', promise);
     }
@@ -270,7 +276,7 @@ Tests that nested error scopes need to be balanced.
     t.expect(errors.every(e => e === null));
 
     {
-      // Trying to pop an additional non-exisiting scope should reject.
+      // Trying to pop an additional non-existing scope should reject.
       const promise = t.device.popErrorScope();
       t.shouldReject('OperationError', promise);
     }

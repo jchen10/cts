@@ -29,7 +29,6 @@ export class BufferResourceUsageTest extends ValidationTest {
         type,
       },
     };
-
     return this.device.createBindGroupLayout({
       entries: [bindGroupLayoutEntry],
     });
@@ -53,7 +52,6 @@ export class BufferResourceUsageTest extends ValidationTest {
       usage: GPUTextureUsage.RENDER_ATTACHMENT,
       size: [16, 16, 1],
     });
-
     return encoder.beginRenderPass({
       colorAttachments: [
         {
@@ -86,11 +84,9 @@ export class BufferResourceUsageTest extends ValidationTest {
         module: this.device.createShaderModule({
           code: this.getNoOpShaderCode('VERTEX'),
         }),
-
         entryPoint: 'main',
         buffers: vertexBuffers,
       },
-
       fragment: {
         module: this.device.createShaderModule({
           code: `
@@ -99,11 +95,9 @@ export class BufferResourceUsageTest extends ValidationTest {
                   return vec4<f32>(0.0, 0.0, 0.0, 1.0);
               }`,
         }),
-
         entryPoint: 'main',
         targets: [{ format: 'rgba8unorm' }],
       },
-
       primitive: { topology: 'point-list' },
     });
   }
@@ -143,7 +137,7 @@ bindGroup, dynamicOffsets), do not contribute directly to a usage scope.`
       .combine('visibility1', ['compute', 'fragment'])
       .combine('hasOverlap', [true, false])
   )
-  .fn(async t => {
+  .fn(t => {
     const { usage0, usage1, visibility0, visibility1, hasOverlap } = t.params;
 
     const buffer = t.createBufferWithState('valid', {
@@ -175,7 +169,11 @@ g.test('subresources,buffer_usage_in_one_compute_pass_with_one_dispatch')
 Test that when one buffer is used in one compute pass encoder, its list of internal usages within
 one usage scope can only be a compatible usage list. According to WebGPU SPEC, within one dispatch,
 for each bind group slot that is used by the current GPUComputePipeline's layout, every subresource
-referenced by that bind group is "used" in the usage scope. `
+referenced by that bind group is "used" in the usage scope.
+
+For both usage === storage, there is writable buffer binding aliasing so we skip this case and will
+have tests covered (https://github.com/gpuweb/cts/issues/2232)
+`
   )
   .params(u =>
     u
@@ -218,11 +216,16 @@ referenced by that bind group is "used" in the usage scope. `
         ) {
           return false;
         }
+
+        // Avoid writable storage buffer bindings aliasing.
+        if (t.usage0 === 'storage' && t.usage1 === 'storage') {
+          return false;
+        }
         return true;
       })
       .combine('hasOverlap', [true, false])
   )
-  .fn(async t => {
+  .fn(t => {
     const {
       usage0AccessibleInDispatch,
       usage1AccessibleInDispatch,
@@ -369,7 +372,7 @@ dispatch calls refer to different usage scopes.`
       .combine('inSamePass', [true, false])
       .combine('hasOverlap', [true, false])
   )
-  .fn(async t => {
+  .fn(t => {
     const { usage0, usage1, inSamePass, hasOverlap } = t.params;
 
     const UseBufferOnComputePassEncoder = (computePassEncoder, buffer, usage, offset) => {
@@ -384,7 +387,6 @@ dispatch calls refer to different usage scopes.`
           const pipelineLayout = t.device.createPipelineLayout({
             bindGroupLayouts: [bindGroupLayout],
           });
-
           const computePipeline = t.createNoOpComputePipeline(pipelineLayout);
           computePassEncoder.setPipeline(computePipeline);
           computePassEncoder.dispatchWorkgroups(1);
@@ -448,7 +450,7 @@ there is no draw call in the render pass.
       .combine('visibility1', ['compute', 'fragment'])
       .unless(t => t.visibility1 === 'compute' && !IsBufferUsageInBindGroup(t.usage1))
   )
-  .fn(async t => {
+  .fn(t => {
     const { usage0, usage1, hasOverlap, visibility0, visibility1 } = t.params;
 
     const UseBufferOnRenderPassEncoder = (
@@ -510,7 +512,11 @@ g.test('subresources,buffer_usage_in_one_render_pass_with_one_draw')
 Test that when one buffer is used in one render pass encoder where there is one draw call, its list
 of internal usages within one usage scope (all the commands in the whole render pass) can only be a
 compatible usage list. The usage scope rules are not related to the buffer offset or the bind group
-layout visibilities.`
+layout visibilities.
+
+For both usage === storage, there is writable buffer binding aliasing so we skip this case and will
+have tests covered (https://github.com/gpuweb/cts/issues/2232)
+`
   )
   .params(u =>
     u
@@ -541,6 +547,11 @@ layout visibilities.`
         }
         // As usage1 is accessible in the draw call, the draw call cannot be before usage1.
         if (t.drawBeforeUsage1 && t.usage1AccessibleInDraw) {
+          return false;
+        }
+
+        // Avoid writable storage buffer bindings aliasing.
+        if (t.usage0 === 'storage' && t.usage1 === 'storage') {
           return false;
         }
         return true;
@@ -577,7 +588,7 @@ layout visibilities.`
       })
       .combine('hasOverlap', [true, false])
   )
-  .fn(async t => {
+  .fn(t => {
     const {
       // Buffer with usage0 will be "used" in the draw call if this value is true.
       usage0AccessibleInDraw,
@@ -660,7 +671,6 @@ layout visibilities.`
             size: 4,
             usage: GPUBufferUsage.INDEX,
           });
-
           renderPassEncoder.setIndexBuffer(indexBuffer, 'uint16');
           renderPassEncoder.drawIndexedIndirect(buffer, offset);
           break;
@@ -694,7 +704,6 @@ layout visibilities.`
       const pipelineLayout = t.device.createPipelineLayout({
         bindGroupLayouts: usedBindGroupLayouts,
       });
-
       // To "use" the vertex buffer we need to set the corresponding vertex buffer layout when
       // creating the render pipeline.
       if (usage0 === 'vertex' && usage0AccessibleInDraw) {
@@ -740,7 +749,6 @@ layout visibilities.`
       const pipelineLayout = t.device.createPipelineLayout({
         bindGroupLayouts: usedBindGroupLayouts,
       });
-
       if (usage1 === 'vertex' && usage1AccessibleInDraw) {
         // To "use" the vertex buffer we need to set the corresponding vertex buffer layout when
         // creating the render pipeline.
@@ -765,7 +773,6 @@ layout visibilities.`
               size: 4,
               usage: GPUBufferUsage.INDEX,
             });
-
             renderPassEncoder.setIndexBuffer(indexBuffer, 'uint16');
           }
           renderPassEncoder.drawIndexedIndirect(buffer, offset1);
@@ -804,7 +811,7 @@ different render pass encoders belong to different usage scopes.`
       .combine('inSamePass', [true, false])
       .combine('hasOverlap', [true, false])
   )
-  .fn(async t => {
+  .fn(t => {
     const { usage0, usage1, inSamePass, hasOverlap } = t.params;
     const buffer = t.createBufferWithState('valid', {
       size: kBoundBufferSize * 2,
@@ -815,7 +822,6 @@ different render pass encoders belong to different usage scopes.`
         GPUBufferUsage.INDEX |
         GPUBufferUsage.INDIRECT,
     });
-
     const UseBufferOnRenderPassEncoderInDrawCall = (offset, usage, renderPassEncoder) => {
       switch (usage) {
         case 'uniform':
@@ -825,7 +831,6 @@ different render pass encoders belong to different usage scopes.`
           const pipelineLayout = t.device.createPipelineLayout({
             bindGroupLayouts: [bindGroupLayout],
           });
-
           const pipeline = t.createRenderPipelineForTest(pipelineLayout, 0);
           renderPassEncoder.setPipeline(pipeline);
           const bindGroup = t.createBindGroupForTest(buffer, offset, usage, 'fragment');
@@ -861,7 +866,6 @@ different render pass encoders belong to different usage scopes.`
             size: 4,
             usage: GPUBufferUsage.INDEX,
           });
-
           renderPassEncoder.setIndexBuffer(indexBuffer, 'uint16');
           renderPassEncoder.drawIndexedIndirect(buffer, offset);
           break;

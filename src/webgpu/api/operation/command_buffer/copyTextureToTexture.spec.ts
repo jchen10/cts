@@ -1,7 +1,7 @@
 export const description = `copyTextureToTexture operation tests`;
 
 import { makeTestGroup } from '../../../../common/framework/test_group.js';
-import { assert, memcpy } from '../../../../common/util/util.js';
+import { assert, memcpy, unreachable } from '../../../../common/util/util.js';
 import {
   kTextureFormatInfo,
   kRegularTextureFormats,
@@ -17,6 +17,7 @@ import {
 } from '../../../capability_info.js';
 import { GPUTest } from '../../../gpu_test.js';
 import { makeBufferWithContents } from '../../../util/buffer.js';
+import { checkElementsEqual, checkElementsEqualEither } from '../../../util/check_contents.js';
 import { align } from '../../../util/math.js';
 import { physicalMipSize } from '../../../util/texture/base.js';
 import { DataArrayGenerator } from '../../../util/texture/data_generation.js';
@@ -202,11 +203,10 @@ class F extends GPUTest {
     );
     this.device.queue.submit([encoder.finish()]);
 
-    // Fill expectedDataWithPadding with the expected data of dstTexture. The other values in
-    // expectedDataWithPadding are kept 0 to check if the texels untouched by the copy are 0
+    // Fill expectedUint8DataWithPadding with the expected data of dstTexture. The other values in
+    // expectedUint8DataWithPadding are kept 0 to check if the texels untouched by the copy are 0
     // (their previous values).
-    const expectedDataWithPadding = new ArrayBuffer(dstBufferSize);
-    const expectedUint8DataWithPadding = new Uint8Array(expectedDataWithPadding);
+    const expectedUint8DataWithPadding = new Uint8Array(dstBufferSize);
     const expectedUint8Data = new Uint8Array(initialSrcData);
 
     const appliedCopyBlocksPerRow = appliedCopyWidth / blockWidth;
@@ -246,8 +246,46 @@ class F extends GPUTest {
       }
     }
 
+    let alternateExpectedData = expectedUint8DataWithPadding;
+    // For 8-byte snorm formats, allow an alternative encoding of -1.
+    // MAINTENANCE_TODO: Use textureContentIsOKByT2B with TexelView.
+    if (srcFormat.includes('snorm')) {
+      switch (srcFormat) {
+        case 'r8snorm':
+        case 'rg8snorm':
+        case 'rgba8snorm':
+          alternateExpectedData = alternateExpectedData.slice();
+          for (let i = 0; i < alternateExpectedData.length; ++i) {
+            if (alternateExpectedData[i] === 128) {
+              alternateExpectedData[i] = 129;
+            } else if (alternateExpectedData[i] === 129) {
+              alternateExpectedData[i] = 128;
+            }
+          }
+          break;
+        case 'bc4-r-snorm':
+        case 'bc5-rg-snorm':
+        case 'eac-r11snorm':
+        case 'eac-rg11snorm':
+          break;
+        default:
+          unreachable();
+      }
+    }
+
     // Verify the content of the whole subresource of dstTexture at dstCopyLevel (in dstBuffer) is expected.
-    this.expectGPUBufferValuesEqual(dstBuffer, expectedUint8DataWithPadding);
+    this.expectGPUBufferValuesPassCheck(
+      dstBuffer,
+      alternateExpectedData === expectedUint8DataWithPadding
+        ? vals => checkElementsEqual(vals, expectedUint8DataWithPadding)
+        : vals =>
+            checkElementsEqualEither(vals, [expectedUint8DataWithPadding, alternateExpectedData]),
+      {
+        srcByteOffset: 0,
+        type: Uint8Array,
+        typedLength: expectedUint8DataWithPadding.length,
+      }
+    );
   }
 
   InitializeStencilAspect(
@@ -703,7 +741,7 @@ g.test('color_textures,non_compressed,non_array')
       .combine('dstCopyLevel', [0, 3])
       .unless(p => p.dimension === '1d' && (p.srcCopyLevel !== 0 || p.dstCopyLevel !== 0))
   )
-  .fn(async t => {
+  .fn(t => {
     const {
       dimension,
       srcTextureSize,
@@ -785,7 +823,7 @@ g.test('color_textures,compressed,non_array')
       kTextureFormatInfo[dstFormat].feature,
     ]);
   })
-  .fn(async t => {
+  .fn(t => {
     const {
       dimension,
       textureSizeInBlocks,
@@ -868,7 +906,7 @@ g.test('color_textures,non_compressed,array')
       .combine('srcCopyLevel', [0, 3])
       .combine('dstCopyLevel', [0, 3])
   )
-  .fn(async t => {
+  .fn(t => {
     const {
       dimension,
       textureSize,
@@ -940,7 +978,7 @@ g.test('color_textures,compressed,array')
       kTextureFormatInfo[dstFormat].feature,
     ]);
   })
-  .fn(async t => {
+  .fn(t => {
     const {
       dimension,
       textureSizeInBlocks,
@@ -1059,7 +1097,7 @@ g.test('zero_sized')
       .combine('dstCopyLevel', [0, 3])
       .unless(p => p.dimension === '1d' && (p.srcCopyLevel !== 0 || p.dstCopyLevel !== 0))
   )
-  .fn(async t => {
+  .fn(t => {
     const { dimension, textureSize, copyBoxOffset, srcCopyLevel, dstCopyLevel } = t.params;
 
     const srcFormat = 'rgba8unorm';
@@ -1120,7 +1158,7 @@ g.test('copy_depth_stencil')
     const { format } = t.params;
     t.selectDeviceForTextureFormatOrSkipTestCase(format);
   })
-  .fn(async t => {
+  .fn(t => {
     const {
       format,
       srcTextureSize,
@@ -1222,7 +1260,7 @@ g.test('copy_multisampled_color')
     texture can only be 1.
   `
   )
-  .fn(async t => {
+  .fn(t => {
     const textureSize = [32, 16, 1] as const;
     const kColorFormat = 'rgba8unorm';
     const kSampleCount = 4;
@@ -1410,7 +1448,7 @@ g.test('copy_multisampled_depth')
     texture can only be 1.
   `
   )
-  .fn(async t => {
+  .fn(t => {
     const textureSize = [32, 16, 1] as const;
     const kDepthFormat = 'depth24plus';
     const kSampleCount = 4;

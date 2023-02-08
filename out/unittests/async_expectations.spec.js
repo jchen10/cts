@@ -2,7 +2,8 @@
 * AUTO-GENERATED - DO NOT EDIT. Source: https://github.com/gpuweb/cts
 **/export const description = `
 Tests for eventualAsyncExpectation and immediateAsyncExpectation.
-`;import { makeTestGroup } from '../common/framework/test_group.js';
+`;
+import { makeTestGroup } from '../common/framework/test_group.js';
 import { makeTestGroupForUnitTesting } from '../common/internal/test_group.js';
 import { assert, objectEquals, rejectOnTimeout, resolveOnTimeout } from '../common/util/util.js';
 
@@ -15,8 +16,8 @@ class FixtureToTest extends UnitTest {
   }
   eventualAsyncExpectation(fn) {
     super.eventualAsyncExpectation(fn);
-  }}
-
+  }
+}
 
 export const g = makeTestGroup(TestGroupTest);
 

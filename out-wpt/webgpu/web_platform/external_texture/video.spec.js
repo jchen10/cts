@@ -12,7 +12,7 @@ TODO: consider whether external_texture and copyToTexture video tests should be 
 import { getResourcePath } from '../../../common/framework/resources.js';
 import { makeTestGroup } from '../../../common/framework/test_group.js';
 import { makeTable } from '../../../common/util/data_tables.js';
-import { GPUTest } from '../../gpu_test.js';
+import { GPUTest, TextureTestMixin } from '../../gpu_test.js';
 import {
   startPlayingAndWaitForVideo,
   getVideoColorSpaceInit,
@@ -37,34 +37,29 @@ const kVideoInfo = makeTable(['colorSpace', 'mimeType'], [undefined, undefined],
 const kVideoExpectations = [
   {
     videoName: 'red-green.webmvp8.webm',
-    _redExpectation: new Uint8Array([0xd9, 0x00, 0x00, 0xff]),
-    _greenExpectation: new Uint8Array([0x01, 0xef, 0x00, 0xff]),
+    _redExpectation: new Uint8Array([0xf8, 0x24, 0x00, 0xff]),
+    _greenExpectation: new Uint8Array([0x3f, 0xfb, 0x00, 0xff]),
   },
-
   {
     videoName: 'red-green.theora.ogv',
-    _redExpectation: new Uint8Array([0xd9, 0x00, 0x00, 0xff]),
-    _greenExpectation: new Uint8Array([0x01, 0xef, 0x00, 0xff]),
+    _redExpectation: new Uint8Array([0xf8, 0x24, 0x00, 0xff]),
+    _greenExpectation: new Uint8Array([0x3f, 0xfb, 0x00, 0xff]),
   },
-
   {
     videoName: 'red-green.mp4',
-    _redExpectation: new Uint8Array([0xd9, 0x00, 0x00, 0xff]),
-    _greenExpectation: new Uint8Array([0x01, 0xef, 0x00, 0xff]),
+    _redExpectation: new Uint8Array([0xf8, 0x24, 0x00, 0xff]),
+    _greenExpectation: new Uint8Array([0x3f, 0xfb, 0x00, 0xff]),
   },
-
   {
     videoName: 'red-green.bt601.vp9.webm',
-    _redExpectation: new Uint8Array([0xd9, 0x00, 0x00, 0xff]),
-    _greenExpectation: new Uint8Array([0x01, 0xef, 0x00, 0xff]),
+    _redExpectation: new Uint8Array([0xf8, 0x24, 0x00, 0xff]),
+    _greenExpectation: new Uint8Array([0x3f, 0xfb, 0x00, 0xff]),
   },
-
   {
     videoName: 'red-green.bt709.vp9.webm',
     _redExpectation: new Uint8Array([0xff, 0x00, 0x00, 0xff]),
     _greenExpectation: new Uint8Array([0x00, 0xff, 0x00, 0xff]),
   },
-
   {
     videoName: 'red-green.bt2020.vp9.webm',
     _redExpectation: new Uint8Array([0xff, 0x00, 0x00, 0xff]),
@@ -72,7 +67,7 @@ const kVideoExpectations = [
   },
 ];
 
-export const g = makeTestGroup(GPUTest);
+export const g = makeTestGroup(TextureTestMixin(GPUTest));
 
 function createExternalTextureSamplingTestPipeline(t) {
   const pipeline = t.device.createRenderPipeline({
@@ -93,10 +88,8 @@ function createExternalTextureSamplingTestPipeline(t) {
         }
         `,
       }),
-
       entryPoint: 'main',
     },
-
     fragment: {
       module: t.device.createShaderModule({
         code: `
@@ -105,11 +98,10 @@ function createExternalTextureSamplingTestPipeline(t) {
 
         @fragment fn main(@builtin(position) FragCoord : vec4<f32>)
                                  -> @location(0) vec4<f32> {
-            return textureSampleLevel(t, s, FragCoord.xy / vec2<f32>(16.0, 16.0));
+            return textureSampleBaseClampToEdge(t, s, FragCoord.xy / vec2<f32>(16.0, 16.0));
         }
         `,
       }),
-
       entryPoint: 'main',
       targets: [
         {
@@ -117,7 +109,6 @@ function createExternalTextureSamplingTestPipeline(t) {
         },
       ],
     },
-
     primitive: { topology: 'triangle-list' },
   });
 
@@ -138,7 +129,6 @@ function createExternalTextureSamplingTestBindGroup(t, source, pipeline) {
         binding: 0,
         resource: linearSampler,
       },
-
       {
         binding: 1,
         resource: externalTexture,
@@ -213,34 +203,20 @@ for several combinations of video format and color space.
           },
         ],
       });
-
       passEncoder.setPipeline(pipeline);
       passEncoder.setBindGroup(0, bindGroup);
       passEncoder.draw(6);
       passEncoder.end();
       t.device.queue.submit([commandEncoder.finish()]);
 
-      // Top left corner should be red. Sample a few pixels away from the edges to avoid compression
+      // For validation, we sample a few pixels away from the edges to avoid compression
       // artifacts.
-      t.expectSinglePixelIn2DTexture(
-        colorAttachment,
-        kFormat,
-        { x: 5, y: 5 },
-        {
-          exp: t.params._redExpectation,
-        }
-      );
-
-      // Bottom right corner should be green. Sample a few pixels away from the edges to avoid
-      // compression artifacts.
-      t.expectSinglePixelIn2DTexture(
-        colorAttachment,
-        kFormat,
-        { x: kWidth - 5, y: kHeight - 5 },
-        {
-          exp: t.params._greenExpectation,
-        }
-      );
+      t.expectSinglePixelComparisonsAreOkInTexture({ texture: colorAttachment }, [
+        // Top left corner should be red.
+        { coord: { x: 5, y: 5 }, exp: t.params._redExpectation },
+        // Bottom right corner should be green.
+        { coord: { x: kWidth - 5, y: kHeight - 5 }, exp: t.params._greenExpectation },
+      ]);
 
       if (sourceType === 'VideoFrame') source.close();
     });
@@ -274,7 +250,6 @@ TODO: Make this test work without requestVideoFrameCallback support (in waitForN
       size: { width: kWidth, height: kHeight, depthOrArrayLayers: 1 },
       usage: GPUTextureUsage.COPY_SRC | GPUTextureUsage.RENDER_ATTACHMENT,
     });
-
     const passDescriptor = {
       colorAttachments: [
         {
@@ -308,7 +283,6 @@ TODO: Make this test work without requestVideoFrameCallback support (in waitForN
       externalTexture = t.device.importExternalTexture({
         source: source,
       });
-
       // Set `bindGroup` here, which will then be used in microtask1 and microtask3.
       bindGroup = t.device.createBindGroup({
         layout: bindGroupLayout,
@@ -393,7 +367,6 @@ compute shader, for several combinations of video format and color space.
               }
             `,
           }),
-
           entryPoint: 'main',
         },
       });
@@ -415,25 +388,12 @@ compute shader, for several combinations of video format and color space.
       pass.end();
       t.device.queue.submit([encoder.finish()]);
 
-      // Pixel loaded from top left corner should be red.
-      t.expectSinglePixelIn2DTexture(
-        outputTexture,
-        kFormat,
-        { x: 0, y: 0 },
-        {
-          exp: t.params._redExpectation,
-        }
-      );
-
-      // Pixel loaded from Bottom right corner should be green.
-      t.expectSinglePixelIn2DTexture(
-        outputTexture,
-        kFormat,
-        { x: 1, y: 0 },
-        {
-          exp: t.params._greenExpectation,
-        }
-      );
+      t.expectSinglePixelComparisonsAreOkInTexture({ texture: outputTexture }, [
+        // Top left corner should be red.
+        { coord: { x: 0, y: 0 }, exp: t.params._redExpectation },
+        // Bottom right corner should be green.
+        { coord: { x: 1, y: 0 }, exp: t.params._greenExpectation },
+      ]);
 
       if (sourceType === 'VideoFrame') source.close();
     });
