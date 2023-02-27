@@ -157,12 +157,13 @@ function createExternalTextureSamplingTestPipeline(t: GPUTest): GPURenderPipelin
 
 function createExternalTextureSamplingTestBindGroup(
   t: GPUTest,
+  mode: 'AllowCopy' | 'DisallowCopy',
   source: HTMLVideoElement | VideoFrame,
   pipeline: GPURenderPipeline
 ): GPUBindGroup {
   const linearSampler = t.device.createSampler();
 
-  const externalTexture = t.device.importExternalTexture({
+  const externalTexture = importExternalTexture(t, mode, {
     /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
     source: source as any,
   });
@@ -206,6 +207,25 @@ function getVideoElement(
   return videoElement;
 }
 
+function checkImportMode(t: GPUTest, mode: 'AllowCopy' | 'DisallowCopy'): void {
+  if (mode === 'DisallowCopy' && !('importExternalTextureZeroCopyForTest' in t.device)) {
+    t.skip('importExternalTextureZeroCopyForTest is NOT available.');
+  }
+}
+
+function importExternalTexture(
+  t: GPUTest,
+  mode: 'AllowCopy' | 'DisallowCopy',
+  descriptor: GPUExternalTextureDescriptor
+): GPUExternalTexture {
+  if (mode === 'AllowCopy') {
+    return t.device.importExternalTexture(descriptor);
+  } else {
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+    return (t.device as any).importExternalTextureZeroCopyForTest(descriptor);
+  }
+}
+
 g.test('importExternalTexture,sample')
   .desc(
     `
@@ -215,10 +235,12 @@ for several combinations of video format and color space.
   )
   .params(u =>
     u //
+      .combine('mode', ['AllowCopy', 'DisallowCopy'] as const)
       .combine('sourceType', ['VideoElement', 'VideoFrame'] as const)
       .combineWithParams(kVideoExpectations)
   )
   .fn(async t => {
+    checkImportMode(t, t.params.mode);
     const sourceType = t.params.sourceType;
     const videoElement = getVideoElement(t, sourceType, t.params.videoName);
 
@@ -235,7 +257,12 @@ for several combinations of video format and color space.
       });
 
       const pipeline = createExternalTextureSamplingTestPipeline(t);
-      const bindGroup = createExternalTextureSamplingTestBindGroup(t, source, pipeline);
+      const bindGroup = createExternalTextureSamplingTestBindGroup(
+        t,
+        t.params.mode,
+        source,
+        pipeline
+      );
 
       const commandEncoder = t.device.createCommandEncoder();
       const passEncoder = commandEncoder.beginRenderPass({
@@ -280,10 +307,12 @@ it will honor rotation metadata.
   )
   .params(u =>
     u //
+      .combine('mode', ['AllowCopy', 'DisallowCopy'] as const)
       .combine('sourceType', ['VideoElement', 'VideoFrame'] as const)
       .combineWithParams(kVideoRotationExpectations)
   )
   .fn(async t => {
+    checkImportMode(t, t.params.mode);
     const sourceType = t.params.sourceType;
     const videoElement = getVideoElement(t, sourceType, t.params.videoName);
 
@@ -300,7 +329,12 @@ it will honor rotation metadata.
       });
 
       const pipeline = createExternalTextureSamplingTestPipeline(t);
-      const bindGroup = createExternalTextureSamplingTestBindGroup(t, source, pipeline);
+      const bindGroup = createExternalTextureSamplingTestBindGroup(
+        t,
+        t.params.mode,
+        source,
+        pipeline
+      );
 
       const commandEncoder = t.device.createCommandEncoder();
       const passEncoder = commandEncoder.beginRenderPass({
@@ -345,9 +379,11 @@ TODO: Make this test work without requestVideoFrameCallback support (in waitForN
   )
   .params(u =>
     u //
+      .combine('mode', ['AllowCopy', 'DisallowCopy'] as const)
       .combine('sourceType', ['VideoElement', 'VideoFrame'] as const)
   )
   .fn(async t => {
+    checkImportMode(t, t.params.mode);
     const sourceType = t.params.sourceType;
     const videoElement = getVideoElement(t, sourceType, 'four-colors-vp9-bt601.webm');
 
@@ -390,7 +426,7 @@ TODO: Make this test work without requestVideoFrameCallback support (in waitForN
         sourceType === 'VideoFrame'
           ? await getVideoFrameFromVideoElement(t, videoElement)
           : videoElement;
-      externalTexture = t.device.importExternalTexture({
+      externalTexture = importExternalTexture(t, t.params.mode, {
         /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
         source: source as any,
       });
@@ -429,10 +465,12 @@ compute shader, for several combinations of video format and color space.
   )
   .params(u =>
     u //
+      .combine('mode', ['AllowCopy', 'DisallowCopy'] as const)
       .combine('sourceType', ['VideoElement', 'VideoFrame'] as const)
       .combineWithParams(kVideoExpectations)
   )
   .fn(async t => {
+    checkImportMode(t, t.params.mode);
     const sourceType = t.params.sourceType;
     const videoElement = getVideoElement(t, sourceType, t.params.videoName);
 
@@ -441,7 +479,7 @@ compute shader, for several combinations of video format and color space.
         sourceType === 'VideoFrame'
           ? await getVideoFrameFromVideoElement(t, videoElement)
           : videoElement;
-      const externalTexture = t.device.importExternalTexture({
+      const externalTexture = importExternalTexture(t, t.params.mode, {
         /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
         source: source as any,
       });
